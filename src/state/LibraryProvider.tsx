@@ -4,6 +4,7 @@ import * as store from '../db/store';
 import { newId, nowIso } from '../lib/id';
 import { lookupWord } from '../api/dictionary';
 import { requestPersistentStorage } from '../lib/persist';
+import { deleteRetiredCaches } from '../lib/cleanup';
 import {
   LibraryContext,
   type LibrarySnapshot,
@@ -98,6 +99,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
      * and non-blocking: a refusal is surfaced in Settings, not thrown here.
      */
     void requestPersistentStorage();
+
+    // Reclaims space on installs that still hold caches we no longer write to.
+    void deleteRetiredCaches();
 
     return () => {
       cancelled = true;
