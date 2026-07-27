@@ -1,0 +1,10 @@
+# Store text with LF in the repository and check out native line endings.
+# This project is worked on from more than one machine, so normalising here keeps
+# diffs free of whole-file line-ending churn.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.woff binary
+*.woff2 binary
+*.ico binary
