@@ -151,6 +151,27 @@ Only if the user asks; nothing here is committed.
 
 - [ ] Audio pronunciation is already stored and played; no review UI exists by design
       (the user chose archive over study tool).
+- [ ] **ISBN capture** — agreed as wanted, deliberately deferred. Read the findings
+      below before touching it, because the cheap-looking routes are traps.
+
+      Only two routes give a correct ISBN:
+      1. **Manual field** in the book's Manage sheet. Small, always right when filled.
+      2. **Barcode scan** of the actual copy — the only accurate automatic route, and
+         it would yield a correct cover and page count too. Needs a scanning library
+         and camera permission. The user declined this during planning but is open to
+         revisiting it, since typing 13 digits is tedious.
+
+      Do **not** derive it from Open Library search. Measured, not assumed:
+      - Requesting `isbn` returns *every* edition's ISBN — **1,814** for Moby Dick —
+        and inflates a three-result search from **0.6 KB to 27.3 KB**. `isbn[0]` is an
+        arbitrary pick from those 1,814.
+      - Using `cover_edition_key` looks principled, since the ISBN would then match the
+        cover shown. For Moby Dick that edition is a **48-page DELCOURT French graphic
+        novel** (`9782413019756`). It would stamp a copy of Melville with a comic's
+        ISBN — worse than blank, because a blank field doesn't mislead.
+
+      Nothing in the app needs an ISBN today: import matches on `Id`, covers use
+      `cover_i`. Treat it as a nicety, not a gap.
 - [ ] Richer stats — lookups over time, most-cited pages.
 - [ ] Bulk edit or move words between books.
 
