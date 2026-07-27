@@ -1,112 +1,135 @@
 # Knightshelf
 
-A commonplace book for words met while reading physical books.
+**A commonplace book for words you meet while reading.**
 
 Add the book you're reading, look up words as you hit them, and every word files
-itself under that book — with the sentence you found it in, cited like a dictionary
-citation. Built as an installable PWA so it works from a phone with no connection.
+itself under that book — together with the sentence you found it in.
 
-## Commands
+🔖 **[Try it](https://knightfury16.github.io/knightshelf/)** · installs to your phone's
+home screen and works offline.
+
+---
+
+## Why
+
+If you read physical books, looking up a word means reaching for your phone. A week
+later that word is buried somewhere in your search history, mixed in with train times
+and takeaway menus. And the question you actually want to ask — *what did this book
+teach me?* — has no answer at all.
+
+Knightshelf keeps the word, its meaning, and the sentence you met it in, filed under
+the book that taught it to you.
+
+## What it does
+
+- **Add books by title.** Searches [Open Library](https://openlibrary.org) for the
+  cover and author. Manual entry for anything it doesn't know.
+- **Look a word up and keep it.** Definitions come from
+  [dictionaryapi.dev](https://dictionaryapi.dev), with phonetics and audio
+  pronunciation where available.
+- **Pick the sense that fits.** Reading a nautical novel, a *sheet* is a rope — but
+  the dictionary offers "bed cloth" first. You choose which sense your book meant.
+- **Record the sentence.** Optional, and the most valuable field in the app: it's the
+  one part you can never reconstruct later. Entries display it as a citation, the way
+  a dictionary cites literature to illustrate a sense.
+- **Two ways to read back.** *Entries* sets each word as a full dictionary entry.
+  *Index* sets them as the index at the back of a book — dense columns, dot leaders
+  out to the page number, meanings hidden until you ask. Reading down the index
+  doubles as a recall test.
+- **Search across everything**, including "I've met this word in another book too".
+- **Works with no signal.** Look a word up on a train with no reception and it saves
+  anyway; the definition fills itself in when you're back online.
+- **Installable.** Add to home screen and it opens like a native app, offline, with
+  the status bar tinted to match the page.
+
+## Your data stays on your device
+
+There is no account, no server, and no analytics. Nothing you type leaves the browser
+it was typed into. Books and words live in IndexedDB; cached definitions, covers and
+fonts live in the service worker cache.
+
+Two consequences worth understanding before you invest real reading into it:
+
+- **Storage is per-device.** Your phone and your laptop each keep their own separate
+  shelf. Syncing them is the next thing being built (see Roadmap).
+- **There is no backup yet.** Clearing site data — or uninstalling the app on Android
+  — takes your words with it. Export is on the roadmap; until then, treat one device
+  as the only copy.
+
+## Status and roadmap
+
+Early but genuinely usable. It is a personal project, built for one reader's habits.
+
+- [x] Books, word capture, dictionary lookup, both reading views, search, offline, PWA
+- [ ] **Sync** — push to a *private* GitHub repository so the same shelf opens on
+      every device, using a token you create and scope yourself
+- [ ] **Excel export and import** — one sheet per book, so your words are yours to
+      take elsewhere
+- [ ] Nice-to-haves: richer statistics, bulk editing
+
+## Run it locally
+
+Requires Node 20+.
 
 ```bash
-npm run dev        # dev server at http://localhost:5173
-npm run build      # production build into dist/
-npm run preview    # serve the production build at /knightshelf/
-npm run typecheck  # tsc, no emit
-npm run lint       # oxlint
-npm run icons      # regenerate PWA icons from scripts/make-icons.mjs
+git clone https://github.com/knightfury16/knightshelf.git
+cd knightshelf
+npm install
+npm run dev
 ```
 
-## Status
+| Command | |
+|---|---|
+| `npm run dev` | dev server on port 5173 |
+| `npm run build` | production build into `dist/` |
+| `npm run preview` | serve the production build |
+| `npm run typecheck` | TypeScript, no emit |
+| `npm run lint` | oxlint |
+| `npm run icons` | regenerate the PWA icon set |
 
-**Phase 1 complete** — books, word capture, dictionary lookup, both reading views,
-theming, PWA. Data is local to one browser.
+## Host your own copy
 
-Next: Phase 2 syncs to a private GitHub repo so the same shelf opens on phone and
-desktop. Phase 3 adds Excel export/import (one sheet per book).
+The app is entirely static, so GitHub Pages hosts it for free.
 
-## Deploying to GitHub Pages
+1. Fork this repository.
+2. In `vite.config.ts`, set `base` to match your repository name — it is
+   `'/knightshelf/'` here, and it must agree or every asset will 404.
+3. In your fork: **Settings → Pages → Build and deployment → Source → GitHub Actions**.
+4. Push to `main`. The included workflow builds and publishes on every push.
 
-The repo **must be named `knightshelf`**, because `vite.config.ts` builds with
-`base: '/knightshelf/'`. A different repo name means changing that value to match.
+## Built with
 
-```bash
-git init -b main
-git add -A
-git commit -m "feat: knightshelf phase 1"
-git remote add origin https://github.com/<you>/knightshelf.git
-git push -u origin main
-```
+React 19, TypeScript, Vite, Tailwind CSS 4, and `idb` for IndexedDB. No backend, no
+state management library, no component library.
 
-Then in the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-The included workflow builds and publishes on every push to `main`. The app lands at
-`https://<you>.github.io/knightshelf/` — open that on your phone and use Chrome's
-**Add to Home screen** to install it.
+Both data sources are deliberately **keyless**. A static site publishes its
+JavaScript, so any API key would be public too — which rules out every dictionary API
+that requires one, and is why this app can be hosted by anyone for nothing.
 
-Note that browser storage is per-origin, so words added on `localhost` do not appear
-on `github.io`. That gap is exactly what Phase 2 closes.
+## A note on the design
 
-## Architecture
+The visual language is a lexicographer's working desk rather than a reading app: laid
+paper, iron-gall ink, and vermilion accents, after the scribal habit of setting
+headings in red. [Instrument Serif](https://fonts.google.com/specimen/Instrument+Serif)
+sets the headwords, [Newsreader](https://fonts.google.com/specimen/Newsreader) the
+definitions — chosen for its optical-size axis, so letterforms firm up at small sizes
+and refine at display sizes — and
+[IBM Plex Mono](https://fonts.google.com/specimen/IBM+Plex+Mono) the metadata, like a
+library catalogue card. The paper grain is generated SVG noise, so it costs no request
+and never blurs.
 
-```
-src/
-  api/          dictionary.ts (dictionaryapi.dev), openlibrary.ts — both keyless
-  db/store.ts   IndexedDB via idb; books + words in separate keyed stores
-  state/        LibraryContext.ts (context + hook), LibraryProvider.tsx, theme.ts
-  components/   Sheet, LookupBar, WordEntry, WordIndex, BookCover, AddBookSheet, …
-  screens/      Shelf, BookView, SearchView, SettingsView
-  lib/          id, hash, hooks, lexicon
-```
+## Contributing
 
-## Decisions worth not re-litigating
+Issues and pull requests are welcome. `CLAUDE.md` documents the constraints that are
+load-bearing rather than incidental — why routing must stay hash-based, why fonts are
+deliberately not precached, why deletes are soft — so it's worth a read before
+changing anything structural.
 
-**Keyless APIs only.** A static site ships its JavaScript publicly, so any API key
-would be public too. That rules out Merriam-Webster and Wordnik and leaves
-dictionaryapi.dev and Open Library — both keyless.
+## Credits
 
-**HashRouter, not BrowserRouter.** GitHub Pages has no server-side rewrite, so
-`/knightshelf/book/xyz` would 404 on refresh or when launched from a home-screen
-shortcut. It also keeps the document path at `/knightshelf/`, so relative asset
-paths in `index.html` resolve correctly on deep links.
+- [dictionaryapi.dev](https://dictionaryapi.dev) — free, keyless dictionary data
+- [Open Library](https://openlibrary.org) — book metadata and cover art
+- Instrument Serif, Newsreader, and IBM Plex Mono, all under the SIL Open Font License
 
-**`base` keyed on `mode`, not `command`.** `vite preview` runs with
-`command: 'serve'` but `mode: 'production'`. Keying on `command` serves the built
-app at `/` while its HTML requests `/knightshelf/...`, and every asset 404s.
-
-**Soft deletes.** Records carry `deletedAt` rather than being removed. A hard
-delete on one device gets resurrected by the next sync from a device that still
-holds the row; a tombstone propagates instead.
-
-**Fonts are not precached.** `@fontsource` ships every unicode subset. Precaching
-pulls all of them — about 1 MB on a first visit. Left alone, the browser honours
-each `@font-face`'s `unicode-range` and fetches only what the text needs; a runtime
-CacheFirst rule then keeps whatever was fetched available offline. This is the
-difference between a 993 KiB and a 330 KiB precache.
-
-**`interactive-widget=resizes-content`.** Without it, Gboard covers the
-bottom-pinned lookup bar you're typing into.
-
-**Senses are capped at 12 per word.** Some words return 30+; the archive and the
-eventual sync file both stay sane.
-
-**External API responses are narrowed from `unknown`** before they reach storage,
-and definitions render as text — never `dangerouslySetInnerHTML`. Untrusted
-third-party content is the only injection vector in an app shaped like this.
-
-## Design
-
-A lexicographer's desk, not a cozy reading nook: laid paper, iron-gall ink, and
-vermilion rubrication (scribes used red for headings). Instrument Serif for
-headwords, Newsreader for definitions (with its optical-size axis, so letterforms
-firm up at small sizes), IBM Plex Mono for catalogue-card metadata.
-
-Entries are set as real dictionary entries, and the sentence from your book appears
-as an attributed citation — the same move the OED makes when it cites literature to
-illustrate a sense.
-
-## Known non-issues
-
-`npm audit` reports a react-router advisory for **RSC mode** CSRF. This app is a
-static SPA with no server, no RSC, and no actions, so it does not apply — and npm's
-suggested "fix" is a downgrade. The remaining advisories are in `workbox-build`'s
-dependency chain, which is build-time only and never ships.
+The idea is much older than the software: a *commonplace book* is the centuries-old
+practice of copying passages and words worth keeping into a notebook of your own.
