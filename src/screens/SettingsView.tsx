@@ -20,9 +20,22 @@ const THEME_OPTIONS: {
   { value: 'system', label: 'System', Icon: SettingsIcon },
 ];
 
-function formatMegabytes(bytes: number): string {
-  const mb = bytes / 1048576;
-  return mb < 0.1 ? '<0.1 MB' : `${mb.toFixed(1)} MB`;
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
+/**
+ * Roughly what the words themselves occupy.
+ *
+ * Reported separately from the origin total because the two differ by orders of
+ * magnitude: Chrome pads opaque cross-origin cache entries heavily, so the origin
+ * figure can read tens of megabytes for a library of a few kilobytes. Showing only
+ * the total implies the words are enormous, which they aren't.
+ */
+function librarySizeBytes(books: unknown[], words: unknown[]): number {
+  return new TextEncoder().encode(JSON.stringify({ books, words })).length;
 }
 
 /**
@@ -181,12 +194,27 @@ export function SettingsView() {
               )}
             </p>
 
-            {storage.usageBytes !== undefined && storage.quotaBytes !== undefined && (
-              <p className="label mt-2">
-                {formatMegabytes(storage.usageBytes)} used of{' '}
-                {formatMegabytes(storage.quotaBytes)} available
-              </p>
-            )}
+            <dl className="mt-3 space-y-1.5">
+              <div className="flex items-baseline gap-2">
+                <dt className="label">Your words</dt>
+                <dd className="font-mono text-sm">{formatBytes(librarySizeBytes(books, words))}</dd>
+              </div>
+
+              {storage.usageBytes !== undefined && storage.quotaBytes !== undefined && (
+                <div className="flex items-baseline gap-2">
+                  <dt className="label">All site data</dt>
+                  <dd className="font-mono text-sm">
+                    {formatBytes(storage.usageBytes)} of {formatBytes(storage.quotaBytes)}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            <p className="mt-2 text-sm text-ink-faint">
+              The larger figure counts the app itself, fonts, and cached images — and the
+              browser inflates cross-origin entries on purpose, so it reads far higher than
+              the bytes actually stored. Your words are the number that matters.
+            </p>
 
             {!storage.persisted && (
               <button
