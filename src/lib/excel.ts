@@ -41,7 +41,14 @@ export const WORD_COLUMNS = [
   'Starred',
 ];
 
-export const BOOK_COLUMNS = ['Id', 'Title', 'Author', 'ISBN', 'Status', 'Sheet Name', 'Words'];
+/**
+ * No ISBN column: nothing currently populates `Book.isbn`. Open Library's search
+ * omits ISBNs by design (a work returns one per edition, often hundreds), and manual
+ * entry has no field for it. A permanently blank column reads like data loss during
+ * an import, so it is better absent until there is something to put in it. Import
+ * matches on `Id` regardless.
+ */
+export const BOOK_COLUMNS = ['Id', 'Title', 'Author', 'Status', 'Sheet Name', 'Words'];
 
 /**
  * Produces a valid, unique sheet name for a book title.
@@ -143,7 +150,6 @@ export function buildExportSheets(books: Book[], words: Word[]): ExportSheet[] {
       book.id,
       book.title,
       book.author ?? '',
-      book.isbn ?? '',
       book.status,
       sheetName,
       bookWords.length,

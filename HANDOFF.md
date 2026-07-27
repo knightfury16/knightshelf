@@ -126,14 +126,20 @@ shape (`{ version, books, words }`, tombstones included) intended as the file fo
 
 The user asked for this explicitly: one sheet per book.
 
-- [ ] **3.1 Export** with SheetJS (`xlsx`), client-side.
+- [x] **3.1 Export** — done, in `src/lib/excel.ts`, unit-tested.
       - One sheet per book: `Id | Word | Part of Speech | Definition | Example |
         Context from Book | Page | Date Added | Note | Starred`
-      - Include `Id` so a round-trip updates rather than duplicates.
-      - Plus a `_Books` sheet: `Id | Title | Author | ISBN | Status | Sheet Name`.
+      - Plus a `_Books` sheet: `Id | Title | Author | Status | Sheet Name | Words`.
         This is what makes import lossless — Excel truncates sheet names to 31 chars
         and forbids `[ ] : * ? / \`, so mangled names must map back to real books.
-      - Sanitize and de-duplicate sheet names.
+      - **No ISBN column.** Nothing populates `Book.isbn`: Open Library's search omits
+        ISBNs by design (one per edition, often hundreds per work) and manual entry has
+        no field. A permanently blank column reads as data loss when importing.
+      - Uses `write-excel-file`, **not** `xlsx` — npm's `xlsx` is frozen at the
+        abandoned 0.18.5 with prototype-pollution and ReDoS advisories, which would
+        matter as soon as import starts parsing untrusted files. `read-excel-file` is
+        the matching reader for 3.2.
+      - One row per word using the reader's chosen sense, not one row per sense.
 - [ ] **3.2 Import.** Read `_Books` first, match books by `Id`, fall back to title.
       Match words by `Id`. Validate every cell (untrusted input). Show a summary
       before committing — how many books and words will be added versus updated.

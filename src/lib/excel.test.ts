@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { BOOKS_SHEET, buildExportSheets, exportFileName, sanitizeSheetName } from './excel';
+import {
+  BOOK_COLUMNS,
+  BOOKS_SHEET,
+  buildExportSheets,
+  exportFileName,
+  sanitizeSheetName,
+} from './excel';
 import type { Book, Word } from '../types';
 
 /**
@@ -111,9 +117,19 @@ describe('buildExportSheets', () => {
     const metadata = sheets[0];
     expect(metadata.rows).toHaveLength(2);
     // Sheet Name column must match the actual sheet, or import cannot map them back.
-    const declared = metadata.rows.map((row) => row[5]);
+    const sheetNameColumn = BOOK_COLUMNS.indexOf('Sheet Name');
+    const declared = metadata.rows.map((row) => row[sheetNameColumn]);
     const actual = sheets.slice(1).map((sheet) => sheet.sheet);
     expect(declared.sort()).toEqual(actual.sort());
+  });
+
+  it('declares no column it never fills', () => {
+    // A permanently blank column reads as data loss when importing.
+    const sheets = buildExportSheets([book()], [word()]);
+    const metadata = sheets[0];
+    metadata.header.forEach((_label, column) => {
+      expect(metadata.rows.some((row) => row[column] !== '' && row[column] !== null)).toBe(true);
+    });
   });
 
   it('keeps a book with no words, so it survives a round-trip', () => {
