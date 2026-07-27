@@ -90,8 +90,36 @@ at `/knightshelf/` with an activated service worker.
 
 ### Phase 2 — sync to a private GitHub repo
 
-Goal: the same shelf opens on phone and desktop. This is the highest-value remaining
-work; the user explicitly wants it next.
+**Built, not yet exercised against a real repository.** The user will create
+`knightshelf-data` and a token, then test. All steps below are done; what follows is
+what a future session needs to know about it.
+
+Files: `src/lib/base64.ts`, `src/lib/merge.ts`, `src/lib/syncEngine.ts`,
+`src/api/github.ts`, `src/state/syncConfig.ts`, `src/state/SyncContext.ts`,
+`src/state/SyncProvider.tsx`, `src/components/SyncPanel.tsx`. 116 tests total.
+
+Things not to undo:
+
+- **`runSync` takes its IO as a parameter** so the conflict-retry path is testable with
+  fakes. Don't inline the network calls.
+- **A conflict is never resolved by forcing a write.** It re-reads, re-merges on top of
+  the other device, and retries — three attempts, then it gives up and says so.
+- **A remote file that won't parse is never treated as empty.** Treating it as empty
+  would push over the top of real data. It refuses and reports.
+- **The merge must stay symmetric.** Timestamp ties break on a comparison of the
+  records, never on which side is "local" — a side-relative rule stops two devices ever
+  agreeing. There are tests for symmetry, idempotence and convergence; keep them.
+- **The push fingerprint guard** in `SyncProvider` exists because a pull writes locally,
+  which changes state, which would re-trigger the debounced push forever.
+- **The token never passes through React context** and is verified before being stored,
+  so a typo cannot leave a broken configuration behind.
+
+Known ceiling: the Contents API caps a file near 1 MB, which at ~600 bytes per word
+plus pretty-printing is roughly **1,250 words**. Reported explicitly as `too-large`
+rather than failing obscurely. Passing it needs the Git Data API
+(blob → tree → commit → ref), which is the natural next piece of work here.
+
+Original plan retained below for context.
 
 - [ ] **2.1 Settings: token entry.** Field for a fine-grained PAT plus the data repo
       `owner/name`. Persist in `localStorage`. Never log it, never send it anywhere
