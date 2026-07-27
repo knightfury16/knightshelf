@@ -1,0 +1,273 @@
+@import 'tailwindcss';
+
+/* Manual theme toggle: `dark:` responds to a .dark class on <html>,
+   set by state/theme.ts (which itself defaults to the system preference). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+   Palette — laid paper, iron-gall ink, vermilion rubrication.
+   Scribes used red for headings and initials; the accent earns its place.
+   --------------------------------------------------------------------------- */
+:root {
+  --paper: #f2eee4;
+  --paper-raised: #fbf9f3;
+  --paper-sunk: #e9e4d7;
+  --ink: #1f1b16;
+  --ink-soft: #4a4239;
+  --ink-faint: #897e6f;
+  --rule: #d5cdbd;
+  --rule-strong: #bcb2a0;
+  --rubric: #a93a25;
+  --rubric-tint: #f6e6e0;
+  --shadow-book: 0 1px 2px rgb(31 27 22 / 0.14), 0 6px 14px -6px rgb(31 27 22 / 0.22);
+  --grain-blend: multiply;
+  --grain-opacity: 0.055;
+}
+
+.dark {
+  --paper: #14120f;
+  --paper-raised: #1e1a16;
+  --paper-sunk: #0e0c0a;
+  --ink: #ebe4d7;
+  --ink-soft: #ab9f8d;
+  --ink-faint: #736857;
+  --rule: #332d25;
+  --rule-strong: #47402f;
+  --rubric: #dc6749;
+  --rubric-tint: #2a1a14;
+  --shadow-book: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 18px -8px rgb(0 0 0 / 0.7);
+  --grain-blend: screen;
+  --grain-opacity: 0.03;
+}
+
+/* `inline` keeps utilities pointing at the vars, so the toggle re-themes at runtime. */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-paper-sunk: var(--paper-sunk);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-rubric: var(--rubric);
+  --color-rubric-tint: var(--rubric-tint);
+
+  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --font-text: 'Newsreader Variable', 'Iowan Old Style', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    background-color: var(--paper);
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-text);
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+
+  /* 16px floor stops iOS Safari zooming the page on focus. */
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    font-size: max(1rem, 16px);
+    color: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--ink-faint);
+    opacity: 1;
+  }
+
+  /* Keyboard focus stays visible; pointer focus doesn't shout. */
+  :focus-visible {
+    outline: 2px solid var(--rubric);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--rubric);
+    color: var(--paper-raised);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Paper grain — feTurbulence rather than a bitmap, so it costs no request
+   and never blurs. Sits above everything, catches no clicks.
+   --------------------------------------------------------------------------- */
+@layer components {
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    mix-blend-mode: var(--grain-blend);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Catalogue-card metadata: dates, pages, counts, section labels. */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  /* Printed-page hairline. 0.5px where the display can render it. */
+  .rule-line {
+    border: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  @media (min-resolution: 2dppx) {
+    .rule-line {
+      border-top-width: 0.5px;
+    }
+  }
+
+  /* Dictionary entry: continuation lines tuck under the headword. */
+  .hanging {
+    padding-left: 1.15em;
+    text-indent: -1.15em;
+  }
+
+  /* Dot leaders, as in the index at the back of a book. */
+  .leader {
+    align-self: center;
+    min-width: 0.75rem;
+    border-bottom: 1px dotted var(--rule-strong);
+    opacity: 0.7;
+  }
+
+  /* A shelf the books actually stand on. */
+  .shelf-rule {
+    background: linear-gradient(
+      to bottom,
+      var(--rule-strong) 0%,
+      var(--rule-strong) 38%,
+      transparent 100%
+    );
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Motion — one orchestrated reveal on load, then restraint.
+   --------------------------------------------------------------------------- */
+@layer utilities {
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(7px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes bleed {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  @keyframes veil {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-rise {
+    animation: rise 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+
+  .animate-bleed {
+    animation: bleed 0.3s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+
+  .animate-sheet-up {
+    animation: sheet-up 0.3s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  }
+
+  .animate-veil {
+    animation: veil 0.22s ease-out both;
+  }
+
+  /* Staggered list reveals. Set --i on each child. */
+  .stagger > * {
+    animation: rise 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    animation-delay: calc(var(--i, 0) * 42ms);
+  }
+
+  /* Notch, home bar, and Android nav gesture area. */
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+  .px-safe {
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
