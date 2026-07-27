@@ -44,6 +44,11 @@ export interface LibraryValue extends LibrarySnapshot {
   saveWord: (input: NewWordInput) => Promise<Word>;
   updateWord: (id: string, patch: Partial<Omit<Word, 'id' | 'bookId'>>) => Promise<void>;
   deleteWord: (id: string) => Promise<void>;
+  /**
+   * Re-reads everything from IndexedDB. Used after a sync merge writes records
+   * underneath the in-memory copy.
+   */
+  reload: () => Promise<void>;
   /** Words captured with no connection, still awaiting a definition. */
   pendingCount: number;
 }

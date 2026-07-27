@@ -73,24 +73,20 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     status: 'loading',
   } satisfies LibrarySnapshot);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load(): Promise<void> {
-      try {
-        const [books, words] = await Promise.all([store.listBooks(), store.listWords()]);
-        if (!cancelled) dispatch({ type: 'loaded', books, words });
-      } catch (error: unknown) {
-        if (!cancelled) {
-          dispatch({
-            type: 'failed',
-            message: `Local storage is unavailable. ${errorMessage(error)}`,
-          });
-        }
-      }
+  const reload = useCallback(async (): Promise<void> => {
+    try {
+      const [books, words] = await Promise.all([store.listBooks(), store.listWords()]);
+      dispatch({ type: 'loaded', books, words });
+    } catch (error: unknown) {
+      dispatch({
+        type: 'failed',
+        message: `Local storage is unavailable. ${errorMessage(error)}`,
+      });
     }
+  }, []);
 
-    void load();
+  useEffect(() => {
+    void reload();
 
     /**
      * Ask to be exempt from eviction on every start. Chrome decides heuristically
@@ -102,11 +98,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
     // Reclaims space on installs that still hold caches we no longer write to.
     void deleteRetiredCaches();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [reload]);
 
   const createBook = useCallback(async (input: NewBookInput): Promise<Book> => {
     const stamp = nowIso();
@@ -251,6 +243,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       saveWord,
       updateWord,
       deleteWord,
+      reload,
       pendingCount: pending.length,
     }),
     [
@@ -262,6 +255,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       saveWord,
       updateWord,
       deleteWord,
+      reload,
       pending.length,
     ],
   );

@@ -14,14 +14,18 @@ import '@fontsource/ibm-plex-mono/500.css';
 import './index.css';
 import { App } from './App';
 import { LibraryProvider } from './state/LibraryProvider';
+import { SyncProvider } from './state/SyncProvider';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element #root is missing from index.html.');
 
 createRoot(container).render(
   <StrictMode>
+    {/* SyncProvider sits inside, so it can reload the library after a merge. */}
     <LibraryProvider>
-      <App />
+      <SyncProvider>
+        <App />
+      </SyncProvider>
     </LibraryProvider>
   </StrictMode>,
 );
