@@ -76,8 +76,13 @@ at `/knightshelf/` with an activated service worker.
       shelf qualifies; a *cold app launch* may not, so the caret may land without the
       keyboard appearing. If it needs a tap, add a visible "tap to look up" affordance
       rather than fighting the gesture policy. Could not be tested from the dev box.
-- [ ] **Deploy and test on the phone.** Git may not be initialised yet; see the
-      Deploying section of [README.md](README.md).
+- [x] **Deployed.** Live at `https://knightfury16.github.io/knightshelf/` via the
+      Actions workflow. The first attempt failed with a 404 on "create deployment"
+      because Pages had never been enabled; `configure-pages` with `enablement: true`
+      now handles that for a fresh clone, but an existing repo set to deploy from a
+      branch still needs Settings → Pages → Source → GitHub Actions.
+- [ ] **Test the installed PWA on the phone** — add to home screen, add a book, check
+      it still works with the network off.
 
 ---
 
