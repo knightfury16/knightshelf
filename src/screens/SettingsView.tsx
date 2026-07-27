@@ -9,6 +9,7 @@ import {
 import { readStorageStatus, requestPersistentStorage, type StorageStatus } from '../lib/persist';
 import { buildXlsxBlob, downloadBlob, exportFileName } from '../lib/excel';
 import { MoonIcon, SettingsIcon, SunIcon } from '../components/Icons';
+import { SyncPanel } from '../components/SyncPanel';
 
 const THEME_OPTIONS: {
   value: ThemeChoice;
@@ -131,6 +132,10 @@ export function SettingsView() {
           ))}
         </div>
       </section>
+
+      <hr className="rule-line" />
+
+      <SyncPanel />
 
       <hr className="rule-line" />
 
@@ -262,12 +267,8 @@ export function SettingsView() {
       <section className="py-7">
         <h2 className="label">Where your words live</h2>
         <p className="mt-2.5 leading-relaxed text-ink-soft">
-          In this browser only — nothing has left this device, and there is no account or
-          server. Each device keeps its own separate shelf.
-        </p>
-        <p className="mt-3 leading-relaxed text-ink-soft">
-          Syncing to a private GitHub repository is planned next, so one shelf follows you
-          everywhere.
+          In this browser, and — if you have set up sync — in your own private repository.
+          There is no account, no analytics, and no other service involved.
         </p>
       </section>
 
