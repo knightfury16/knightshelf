@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+    <!--
+      viewport-fit=cover          -> lets us paint under the status bar / gesture area
+      interactive-widget=resizes-content
+        -> When Gboard opens on Android, shrink the layout viewport instead of just
+           scrolling it. Without this, the bottom-pinned lookup bar (the thing you
+           are actively typing into) ends up hidden behind the keyboard.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+
+    <meta name="theme-color" content="#f2eee4" />
+    <meta name="description" content="A commonplace book for words met while reading." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <title>Knightshelf</title>
+
+    <!--
+      Resolve the theme before first paint. Opening the app at night and getting
+      hit by a full-brightness flash of light paper is worth avoiding.
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('knightshelf.theme');
+          var dark =
+            saved === 'dark' ||
+            (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', dark ? '#14120f' : '#f2eee4');
+        } catch (e) {
+          /* private mode with storage disabled — fall through to light */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
