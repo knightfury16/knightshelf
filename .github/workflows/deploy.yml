@@ -22,6 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Turns Pages on via the API if it isn't already, so a fresh clone of this
+      # repo doesn't fail the deploy job with a 404 on "create deployment".
+      # Settings -> Pages -> Source must still be "GitHub Actions" for an existing
+      # repo where Pages was already configured to deploy from a branch.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
