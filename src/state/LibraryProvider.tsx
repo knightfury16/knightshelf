@@ -3,6 +3,7 @@ import type { Book, BookStatus, Word } from '../types';
 import * as store from '../db/store';
 import { newId, nowIso } from '../lib/id';
 import { lookupWord } from '../api/dictionary';
+import { requestPersistentStorage } from '../lib/persist';
 import {
   LibraryContext,
   type LibrarySnapshot,
@@ -89,6 +90,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
 
     void load();
+
+    /**
+     * Ask to be exempt from eviction on every start. Chrome decides heuristically
+     * and its answer can change as engagement grows (installing the app usually
+     * tips it), so a single attempt at first run would be the wrong shape. Silent
+     * and non-blocking: a refusal is surfaced in Settings, not thrown here.
+     */
+    void requestPersistentStorage();
+
     return () => {
       cancelled = true;
     };
