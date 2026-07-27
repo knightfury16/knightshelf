@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { bucket } from '../lib/hash';
 
 /**
@@ -29,17 +30,26 @@ export function BookCover({ id, title, author, coverUrl, className = '' }: BookC
   const ratio = RATIOS[bucket(id, RATIOS.length)];
   const cloth = CLOTHS[bucket(`${id}cloth`, CLOTHS.length)];
 
+  /**
+   * Covers are not held in the service worker cache, so offline they may simply fail
+   * to load. Falling back to the typeset binding keeps the shelf looking deliberate
+   * rather than showing a row of broken-image icons.
+   */
+  const [imageFailed, setImageFailed] = useState(false);
+  const showArtwork = Boolean(coverUrl) && !imageFailed;
+
   return (
     <div
       className={`relative w-full overflow-hidden rounded-[2px] shadow-book ${className}`}
       style={{ aspectRatio: ratio }}
     >
-      {coverUrl ? (
+      {showArtwork ? (
         <img
           src={coverUrl}
           alt=""
           loading="lazy"
           decoding="async"
+          onError={() => setImageFailed(true)}
           className="h-full w-full object-cover"
         />
       ) : (

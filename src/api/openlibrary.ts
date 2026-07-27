@@ -28,10 +28,11 @@ export interface BookSearchResult {
 export type CoverSize = 'S' | 'M' | 'L';
 
 /**
- * `L` is roughly 500px wide. At 2 shelf columns on a 412px viewport with a ~2.6x
- * device pixel ratio, anything smaller visibly softens.
+ * `M` is roughly 180px wide. `L` (~500px) matches the shelf's device pixels more
+ * exactly on a high-DPI phone, but costs several times the bytes for artwork that is
+ * decorative — so `M` is the default and the slight softening is an accepted trade.
  */
-export function coverUrlForId(coverId: number, size: CoverSize = 'L'): string {
+export function coverUrlForId(coverId: number, size: CoverSize = 'M'): string {
   return `${COVER_BASE}/${coverId}-${size}.jpg`;
 }
 

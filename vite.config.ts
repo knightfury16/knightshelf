@@ -79,15 +79,21 @@ export default defineConfig(({ mode }) => ({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          {
-            urlPattern: /^https:\/\/covers\.openlibrary\.org\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'ks-covers',
-              expiration: { maxEntries: 600, maxAgeSeconds: YEAR },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
+          /**
+           * Book covers are deliberately NOT cached here.
+           *
+           * They are cross-origin images fetched without CORS, so their responses are
+           * opaque — and Chrome pads opaque Cache Storage entries heavily to stop sites
+           * measuring cross-origin response sizes as a side channel. Measured: one
+           * cached cover added ~1.23 MB to reported usage for a ~50 KB JPEG. Browsing a
+           * single search screen cached a dozen of them, which is how a one-book library
+           * came to report 62 MB.
+           *
+           * The padding is roughly per-entry, so smaller images would not have helped.
+           * Left alone, Chrome's ordinary HTTP cache serves repeat views just as fast
+           * and does not count against the storage quota at all. BookCover falls back to
+           * its typeset binding if an image can't be fetched offline.
+           */
           {
             // Search results go stale fast and are useless offline; keep them brief.
             urlPattern: /^https:\/\/openlibrary\.org\/search\.json.*/i,
