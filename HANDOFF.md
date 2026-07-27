@@ -3,7 +3,7 @@
 Current status, decisions already made, and the task list. Update this file as work
 lands so the next session starts oriented.
 
-**Last updated:** 2026-07-27 · end of Phase 1
+**Last updated:** 2026-07-27 · end of Phase 1, plus the word detail sheet
 
 ---
 
@@ -46,8 +46,14 @@ this; if they later want to pin one book explicitly, it's a small change.
   from id hash), coverless books get a typeset cloth binding. Stats colophon.
 - **Book** — dictionary-style entries with the book sentence as an attributed
   citation; filter; Recent/A–Z; **Entries/Index** view toggle (persisted).
-- **Index view** — words only, dense columns, dot leaders to page number, tap to
-  reveal, "Reveal all", letter dividers when sorted A–Z.
+- **Index view** — words only, dense columns, dot leaders to page number, letter
+  dividers when sorted A–Z. "Reveal meanings" shows every definition inline for
+  scanning; a single tap opens the detail sheet instead, so the two gestures don't
+  compete.
+- **Word detail sheet** — one canonical read-only record per word, reachable from an
+  entry headword, an index row, or a search hit. Citation first (it's the part only
+  the reader has), then every sense with the primary marked and switchable, note,
+  dates. Editing hands off to `WordFormSheet` so only one sheet is ever open.
 - **Lookup** — bottom-pinned, debounced, sense picking (a nautical novel's "sheet" is
   a rope, and the dictionary returns "bed cloth" first), optional book sentence and
   page. Saves offline as `pending` and resolves definitions when back online.

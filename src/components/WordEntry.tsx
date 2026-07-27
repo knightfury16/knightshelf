@@ -17,10 +17,12 @@ interface WordEntryProps {
   /** Shown in the citation. Passed explicitly so global search can attribute across books. */
   bookTitle?: string;
   onEdit: (word: Word) => void;
+  /** Tapping the headword opens the full record. */
+  onOpen: (word: Word) => void;
   index?: number;
 }
 
-export function WordEntry({ word, bookTitle, onEdit, index = 0 }: WordEntryProps) {
+export function WordEntry({ word, bookTitle, onEdit, onOpen, index = 0 }: WordEntryProps) {
   const { updateWord, deleteWord } = useLibrary();
   const [expanded, setExpanded] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -40,7 +42,15 @@ export function WordEntry({ word, bookTitle, onEdit, index = 0 }: WordEntryProps
       className="group py-5 first:pt-4"
     >
       <div className="flex items-baseline gap-x-2.5 gap-y-1">
-        <h3 className="font-display text-[1.75rem] leading-none">{word.term}</h3>
+        <h3 className="font-display text-[1.75rem] leading-none">
+          <button
+            type="button"
+            onClick={() => onOpen(word)}
+            className="text-left transition-colors hover:text-rubric"
+          >
+            {word.term}
+          </button>
+        </h3>
 
         {word.phonetic && (
           <span className="font-mono text-xs text-ink-faint">{word.phonetic}</span>

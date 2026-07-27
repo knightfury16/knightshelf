@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLibrary } from '../state/LibraryContext';
 import { WordEntry } from '../components/WordEntry';
 import { WordFormSheet } from '../components/WordFormSheet';
+import { WordDetailSheet } from '../components/WordDetailSheet';
 import type { Word } from '../types';
 
 /**
@@ -28,6 +29,7 @@ export function SearchView() {
   const { books, words } = useLibrary();
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Word | null>(null);
+  const [detail, setDetail] = useState<Word | null>(null);
 
   const titleById = useMemo(
     () => new Map(books.map((book) => [book.id, book.title])),
@@ -114,11 +116,22 @@ export function SearchView() {
                 bookTitle={bookTitle}
                 index={index}
                 onEdit={setEditing}
+                onOpen={setDetail}
               />
             </div>
           );
         })}
       </div>
+
+      <WordDetailSheet
+        word={detail}
+        bookTitle={detail ? titleById.get(detail.bookId) : undefined}
+        onClose={() => setDetail(null)}
+        onEdit={(word) => {
+          setDetail(null);
+          setEditing(word);
+        }}
+      />
 
       <WordFormSheet
         open={editing !== null}

@@ -5,6 +5,7 @@ import { LookupBar } from '../components/LookupBar';
 import { WordEntry } from '../components/WordEntry';
 import { WordIndex } from '../components/WordIndex';
 import { WordFormSheet } from '../components/WordFormSheet';
+import { WordDetailSheet } from '../components/WordDetailSheet';
 import { usePersistedState } from '../lib/hooks';
 import { crossBookTermIndex } from '../lib/stats';
 import { Sheet } from '../components/Sheet';
@@ -39,6 +40,7 @@ export function BookView() {
   // every book, not just the one where it got switched on.
   const [view, setView] = usePersistedState<ViewMode>('knightshelf.bookView', 'entries');
   const [editing, setEditing] = useState<Word | null>(null);
+  const [detail, setDetail] = useState<Word | null>(null);
   const [managing, setManaging] = useState(false);
 
   const book = books.find((candidate) => candidate.id === bookId);
@@ -174,7 +176,7 @@ export function BookView() {
 
       {view === 'index' ? (
         visible.length > 0 && (
-          <WordIndex words={visible} onOpen={setEditing} showLetters={sort === 'alpha'} />
+          <WordIndex words={visible} onOpen={setDetail} showLetters={sort === 'alpha'} />
         )
       ) : (
         /* Two columns on wide screens, the way a dictionary page actually sets. */
@@ -186,6 +188,7 @@ export function BookView() {
                 bookTitle={book.title}
                 index={index}
                 onEdit={setEditing}
+                onOpen={setDetail}
               />
             </div>
           ))}
@@ -199,6 +202,17 @@ export function BookView() {
         // A book still in progress is one you came here to add to; a finished book
         // is one you came here to re-read.
         autoFocus={book.status === 'reading'}
+      />
+
+      {/* Detail is read-only; Edit hands off to the form so only one sheet is ever up. */}
+      <WordDetailSheet
+        word={detail}
+        bookTitle={book.title}
+        onClose={() => setDetail(null)}
+        onEdit={(word) => {
+          setDetail(null);
+          setEditing(word);
+        }}
       />
 
       <WordFormSheet

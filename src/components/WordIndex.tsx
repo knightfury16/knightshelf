@@ -14,6 +14,7 @@ import { StarIcon } from './Icons';
 
 interface WordIndexProps {
   words: Word[];
+  /** Tapping a row opens the full record. */
   onOpen: (word: Word) => void;
   /** Letter dividers, as in a real index. Only meaningful when sorted A–Z. */
   showLetters?: boolean;
@@ -22,7 +23,12 @@ interface WordIndexProps {
 type Row = { kind: 'letter'; letter: string } | { kind: 'word'; word: Word };
 
 export function WordIndex({ words, onOpen, showLetters = false }: WordIndexProps) {
-  const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  /**
+   * Bulk reveal only. A single tap opens the detail sheet instead, so the two
+   * gestures don't compete: "Reveal all" is for scanning the whole list at once,
+   * a tap is for going deep on one word.
+   */
+  const [revealed, setRevealed] = useState(false);
 
   const rows = useMemo<Row[]>(() => {
     if (!showLetters) return words.map((word) => ({ kind: 'word', word }));
@@ -40,29 +46,17 @@ export function WordIndex({ words, onOpen, showLetters = false }: WordIndexProps
     return out;
   }, [words, showLetters]);
 
-  function toggle(id: string): void {
-    setRevealed((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  const allRevealed = revealed.size > 0 && revealed.size === words.length;
-
   return (
     <div className="py-3">
       <div className="flex items-center justify-between pb-2">
-        <p className="label">Tap a word to check yourself</p>
+        <p className="label">Tap a word for its entry</p>
         <button
           type="button"
-          onClick={() =>
-            setRevealed(allRevealed ? new Set() : new Set(words.map((word) => word.id)))
-          }
+          onClick={() => setRevealed((value) => !value)}
+          aria-pressed={revealed}
           className="label min-h-9 text-rubric transition-opacity hover:opacity-70"
         >
-          {allRevealed ? 'Hide all' : 'Reveal all'}
+          {revealed ? 'Hide meanings' : 'Reveal meanings'}
         </button>
       </div>
 
@@ -85,22 +79,16 @@ export function WordIndex({ words, onOpen, showLetters = false }: WordIndexProps
           }
 
           const { word } = row;
-          const isOpen = revealed.has(word.id);
           const primary = word.senses[word.primarySense] ?? word.senses[0];
 
           return (
             <li key={word.id} className="mb-1 break-inside-avoid">
               <button
                 type="button"
-                onClick={() => toggle(word.id)}
-                aria-expanded={isOpen}
+                onClick={() => onOpen(word)}
                 className="flex w-full items-baseline gap-1.5 py-1 text-left"
               >
-                <span
-                  className={`font-text text-[1.0625rem] leading-snug transition-colors ${
-                    isOpen ? 'text-rubric' : 'text-ink'
-                  }`}
-                >
+                <span className="font-text text-[1.0625rem] leading-snug text-ink transition-colors hover:text-rubric">
                   {word.term}
                 </span>
 
@@ -117,7 +105,7 @@ export function WordIndex({ words, onOpen, showLetters = false }: WordIndexProps
                 )}
               </button>
 
-              {isOpen && (
+              {revealed && (
                 <div className="animate-rise pb-2 pl-2">
                   {primary ? (
                     <p className="text-[0.875rem] leading-snug text-ink-soft">
@@ -131,20 +119,6 @@ export function WordIndex({ words, onOpen, showLetters = false }: WordIndexProps
                       {word.lookupState === 'pending' ? 'Awaiting definition.' : 'No definition.'}
                     </p>
                   )}
-
-                  {word.contextSentence && (
-                    <p className="mt-1 border-l border-rubric/40 pl-2 text-[0.8125rem] leading-snug text-ink-faint italic">
-                      {word.contextSentence}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => onOpen(word)}
-                    className="label mt-1.5 min-h-9 text-rubric transition-opacity hover:opacity-70"
-                  >
-                    Edit
-                  </button>
                 </div>
               )}
             </li>
