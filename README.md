@@ -33,39 +33,102 @@ the book that taught it to you.
   one part you can never reconstruct later. Entries display it as a citation, the way
   a dictionary cites literature to illustrate a sense.
 - **Two ways to read back.** *Entries* sets each word as a full dictionary entry.
-  *Index* sets them as the index at the back of a book — dense columns, dot leaders
-  out to the page number, meanings hidden until you ask. Reading down the index
-  doubles as a recall test.
+  *Index* lists the words alone, with dot leaders out to the page number and meanings
+  hidden until you ask — so reading down it doubles as a recall test.
 - **Search across everything**, including "I've met this word in another book too".
 - **Works with no signal.** Look a word up on a train with no reception and it saves
   anyway; the definition fills itself in when you're back online.
-- **Installable.** Add to home screen and it opens like a native app, offline, with
-  the status bar tinted to match the page.
+- **Sync across devices** through a private GitHub repository you own. See below.
+- **Export to Excel**, one sheet per book, so your words are always yours to take
+  elsewhere.
 
-## Your data stays on your device
+## Install it on your phone
 
-There is no account, no server, and no analytics. Nothing you type leaves the browser
-it was typed into. Books and words live in IndexedDB; cached definitions, covers and
-fonts live in the service worker cache.
+This is where the app is meant to live. Installed, it opens from your home screen like
+a native app, runs offline, and tints the status bar to match the page.
 
-Two consequences worth understanding before you invest real reading into it:
+**Android (Chrome)**
 
-- **Storage is per-device.** Your phone and your laptop each keep their own separate
-  shelf. Syncing them is the next thing being built (see Roadmap).
-- **There is no backup yet.** Clearing site data — or uninstalling the app on Android
-  — takes your words with it. Export is on the roadmap; until then, treat one device
-  as the only copy.
+1. Open <https://knightfury16.github.io/knightshelf/> in Chrome.
+2. Tap the **⋮** menu.
+3. Choose **Add to Home screen** (it may say **Install app**), then confirm.
+
+**iPhone (Safari)**
+
+1. Open the same link in Safari — Chrome on iOS cannot install web apps.
+2. Tap the **Share** button.
+3. Choose **Add to Home Screen**.
+
+Installing also makes Chrome far more likely to grant *persistent storage*, which
+exempts your words from being cleared when the device runs low on space. You can check
+that under **Settings → Storage** in the app.
+
+## Set up sync
+
+Optional. Without it the app works perfectly well on one device. With it, the same
+shelf opens everywhere.
+
+Your words live in a **private repository that you create and own**. There is no
+account to make and no server in between — the app talks directly to GitHub using a
+token you generate and scope yourself.
+
+**Once, to get started**
+
+1. **Create an empty private repository**, for example `knightshelf-data`. Don't add a
+   README or any files; the app creates what it needs.
+2. **Generate a
+   [fine-grained token](https://github.com/settings/personal-access-tokens/new).** The
+   settings that matter:
+   - **Repository access** → **Only select repositories** → pick that one repository.
+   - **Permissions → Contents** → **Read and write**.
+   - `Metadata: Read-only` is added automatically and is required. Nothing else is.
+3. **Copy the token** — GitHub shows it once.
+4. In the app: **Settings → Sync → Set up sync**, enter `your-name/knightshelf-data`
+   and paste the token, then **Connect**.
+
+**On every other device**, repeat step 4 with the same repository. The first sync pulls
+what's already there and merges it with whatever is on that device.
+
+**After that it looks after itself.** It pulls when you open the app, pushes a few
+seconds after you stop editing, and retries when a connection returns. Two devices that
+were both edited offline merge automatically — words are combined, and the most recent
+edit wins on anything touched in both places.
+
+A quiet bonus: every sync is a git commit, so the repository's history becomes a dated
+record of your reading. Browsing it shows what you learned, and when.
+
+**Worth knowing**
+
+- The token is stored in that browser only, and sent only to GitHub. It is never
+  written into the repository. Each device needs its own paste.
+- Because it is scoped to one repository with contents-only access, a leaked token
+  exposes your word list and nothing else. Revoking it on GitHub kills it everywhere.
+- **Keep the repository private.** The app warns you in Settings if it isn't.
+- Sync currently handles libraries up to roughly 1,250 words. Past that it says so
+  plainly rather than failing quietly.
+
+## Your data
+
+There is no account, no analytics, and no third-party service. Words live in your
+browser's IndexedDB, plus your own private repository if you enable sync.
+
+Two things to keep in mind:
+
+- **Without sync, each device keeps its own separate shelf.** Nothing is shared until
+  you connect them.
+- **Export is your backup.** Settings → Export writes an Excel workbook with one sheet
+  per book. Worth doing after a good reading session.
 
 ## Status and roadmap
 
-Early but genuinely usable. It is a personal project, built for one reader's habits.
+Usable daily. It's a personal project, built around one reader's habits.
 
 - [x] Books, word capture, dictionary lookup, both reading views, search, offline, PWA
-- [ ] **Sync** — push to a *private* GitHub repository so the same shelf opens on
-      every device, using a token you create and scope yourself
-- [ ] **Excel export and import** — one sheet per book, so your words are yours to
-      take elsewhere
-- [ ] Nice-to-haves: richer statistics, bulk editing
+- [x] Excel export — one sheet per book
+- [x] Sync through a private GitHub repository
+- [ ] **Excel import**, so an export can be restored rather than only kept
+- [ ] Larger libraries — sync needs the Git Data API to pass the ~1,250 word ceiling
+- [ ] ISBN capture, richer statistics
 
 ## Run it locally
 
@@ -83,6 +146,7 @@ npm run dev
 | `npm run dev` | dev server on port 5173 |
 | `npm run build` | production build into `dist/` |
 | `npm run preview` | serve the production build |
+| `npm test` | unit tests |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | oxlint |
 | `npm run icons` | regenerate the PWA icon set |
@@ -97,10 +161,15 @@ The app is entirely static, so GitHub Pages hosts it for free.
 3. In your fork: **Settings → Pages → Build and deployment → Source → GitHub Actions**.
 4. Push to `main`. The included workflow builds and publishes on every push.
 
+Hosting your own copy is also the privacy-conscious choice if you plan to use sync: a
+browser app handling a token is only as trustworthy as the JavaScript serving it, and
+forking removes anyone else from that equation.
+
 ## Built with
 
-React 19, TypeScript, Vite, Tailwind CSS 4, and `idb` for IndexedDB. No backend, no
-state management library, no component library.
+React 19, TypeScript, Vite, Tailwind CSS 4, `idb` for IndexedDB, and
+`write-excel-file` for the export. No backend, no state management library, no
+component library.
 
 Both data sources are deliberately **keyless**. A static site publishes its
 JavaScript, so any API key would be public too — which rules out every dictionary API
@@ -122,8 +191,9 @@ and never blurs.
 
 Issues and pull requests are welcome. `CLAUDE.md` documents the constraints that are
 load-bearing rather than incidental — why routing must stay hash-based, why fonts are
-deliberately not precached, why deletes are soft — so it's worth a read before
-changing anything structural.
+deliberately not precached, why deletes are soft — and `HANDOFF.md` records the
+invariants the sync merge depends on. Both are worth reading before changing anything
+structural.
 
 ## Credits
 
