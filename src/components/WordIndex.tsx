@@ -60,14 +60,13 @@ export function WordIndex({ words, onOpen, showLetters = false }: WordIndexProps
         </button>
       </div>
 
-      <ul className="columns-2 gap-x-6 sm:columns-3 sm:gap-x-8 lg:columns-4">
+      {/* One word per row. Multi-column packs more in, but reads as a grid to scan
+          across rather than a list to run your eye down. */}
+      <ul>
         {rows.map((row) => {
           if (row.kind === 'letter') {
             return (
-              <li
-                key={`letter-${row.letter}`}
-                className="mt-3 mb-1.5 break-inside-avoid first:mt-0"
-              >
+              <li key={`letter-${row.letter}`} className="mt-4 mb-1.5 first:mt-0">
                 <div className="flex items-center gap-2">
                   <span className="font-display text-lg leading-none text-rubric">
                     {row.letter}
@@ -82,7 +81,7 @@ export function WordIndex({ words, onOpen, showLetters = false }: WordIndexProps
           const primary = word.senses[word.primarySense] ?? word.senses[0];
 
           return (
-            <li key={word.id} className="mb-1 break-inside-avoid">
+            <li key={word.id} className="border-b border-rule/60 last:border-b-0">
               <button
                 type="button"
                 onClick={() => onOpen(word)}
