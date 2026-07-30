@@ -3,6 +3,7 @@ import { Sheet } from './Sheet';
 import type { LookupState, Sense, Word } from '../types';
 import { useLibrary } from '../state/LibraryContext';
 import { abbreviatePartOfSpeech } from '../lib/lexicon';
+import { ReferenceLinks } from './ReferenceLinks';
 
 /**
  * The detail form, used for both capturing a new word and editing an existing
@@ -116,6 +117,15 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
       }
     >
       <div className="space-y-5">
+        {/* Deciding between a dozen senses is the moment a second opinion helps most —
+            but following a link from here used to lose the unsaved word entirely, so it
+            commits first. The label says so rather than saving behind your back. */}
+        <ReferenceLinks
+          term={term || active.term}
+          label={word ? 'Save changes & look up' : 'Save & look up'}
+          beforeNavigate={submit}
+        />
+
         {word && (
           <label className="block">
             <span className="label">Word</span>

@@ -4,6 +4,7 @@ import type { Word } from '../types';
 import { useLibrary } from '../state/LibraryContext';
 import { abbreviatePartOfSpeech, formatEntryDate } from '../lib/lexicon';
 import { PencilIcon, SpeakerIcon, StarIcon, TrashIcon } from './Icons';
+import { ReferenceLinks } from './ReferenceLinks';
 
 /**
  * The full record for one word: every sense, the citation, your note, the dates.
@@ -200,6 +201,15 @@ export function WordDetailSheet({ word, bookTitle, onClose, onEdit }: WordDetail
               : 'No dictionary entry was found for this word.'}
           </p>
         )}
+
+        <hr className="rule-line" />
+
+        {/* Where to go when the dictionary is thin — which, for literary vocabulary,
+            is most of the time. */}
+        <div>
+          <p className="label">Look it up elsewhere</p>
+          <ReferenceLinks term={word.term} compact className="mt-2" />
+        </div>
 
         <hr className="rule-line" />
 

@@ -6,6 +6,7 @@ import { abbreviatePartOfSpeech } from '../lib/lexicon';
 import type { LookupState, Sense } from '../types';
 import { WordFormSheet, type WordDraft } from './WordFormSheet';
 import { SpeakerIcon } from './Icons';
+import { ReferenceLinks } from './ReferenceLinks';
 
 /**
  * The capture bar — the most-used surface in the app, so it gets the bottom edge
@@ -193,14 +194,30 @@ export function LookupBar({
                     </span>
                     {primary.definition}
                   </p>
+
+                  {primary.example && (
+                    <p className="mt-1 line-clamp-2 text-[0.875rem] leading-snug text-ink-faint italic">
+                      “{primary.example}”
+                    </p>
+                  )}
                 </div>
               )}
 
               {preview.state === 'notfound' && (
-                <p className="pb-1 text-sm text-ink-soft">
-                  No dictionary entry for <span className="italic">{trimmed}</span>. Save it anyway
-                  and write your own meaning.
-                </p>
+                <div className="pb-1">
+                  <p className="text-sm text-ink-soft">
+                    No dictionary entry for <span className="italic">{trimmed}</span>. Save it
+                    anyway and write your own meaning — or look it up elsewhere.
+                  </p>
+                  {/* Turns a dead end into a doorway — and files the word before
+                      leaving, so checking it elsewhere cannot cost you the capture. */}
+                  <ReferenceLinks
+                    term={trimmed}
+                    label="Save & look up"
+                    beforeNavigate={quickSave}
+                    className="mt-1.5"
+                  />
+                </div>
               )}
 
               {preview.state === 'offline' && (
