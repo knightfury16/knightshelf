@@ -105,6 +105,14 @@ export function WordEntry({ word, bookTitle, onEdit, onOpen, index = 0 }: WordEn
         </p>
       )}
 
+      {/* The dictionary's own example, kept visually subordinate to the citation
+          below: no rule, no attribution, just a quoted aside. */}
+      {primary?.example && (
+        <p className="mt-1.5 pl-[1.15em] text-[0.9375rem] leading-snug text-ink-faint italic">
+          “{primary.example}”
+        </p>
+      )}
+
       {/* --- the citation: this book, this sentence ---------------------- */}
 
       {word.contextSentence && (
