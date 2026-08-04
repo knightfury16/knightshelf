@@ -16,9 +16,25 @@ interface SheetProps {
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
+  /**
+   * Whether opening should put the caret in the first field.
+   *
+   * True for sheets that exist to be typed into. False for sheets you open to *read* —
+   * focusing a field there scrolls the content you came for out of view and raises the
+   * keyboard over the rest.
+   */
+  autoFocusField?: boolean;
 }
 
-export function Sheet({ open, onClose, title, subtitle, children, footer }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  autoFocusField = true,
+}: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Escape to dismiss, and keep the page behind from scrolling under the sheet.
@@ -46,21 +62,24 @@ export function Sheet({ open, onClose, title, subtitle, children, footer }: Shee
    * the content in DOM order — which swallows typing (a space activates it and
    * dismisses the sheet) and leaves the mobile keyboard shut on a sheet whose
    * whole purpose is typing.
+   *
+   * `autoFocusField={false}` skips the field entirely and focuses the panel, which
+   * still moves focus into the dialog for screen readers and Escape.
    */
   useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
     if (!panel) return;
 
-    const target =
-      panel.querySelector<HTMLElement>('[data-autofocus]') ??
-      panel.querySelector<HTMLElement>(
-        'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])',
-      ) ??
-      panel;
+    const field = autoFocusField
+      ? (panel.querySelector<HTMLElement>('[data-autofocus]') ??
+        panel.querySelector<HTMLElement>(
+          'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])',
+        ))
+      : null;
 
-    target.focus();
-  }, [open]);
+    (field ?? panel).focus();
+  }, [open, autoFocusField]);
 
   if (!open) return null;
 

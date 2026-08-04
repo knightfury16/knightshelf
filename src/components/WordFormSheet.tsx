@@ -3,6 +3,7 @@ import { Sheet } from './Sheet';
 import type { LookupState, Sense, Word } from '../types';
 import { useLibrary } from '../state/LibraryContext';
 import { abbreviatePartOfSpeech } from '../lib/lexicon';
+import { commit } from '../lib/haptics';
 import { ReferenceLinks } from './ReferenceLinks';
 
 /**
@@ -85,6 +86,7 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
           note,
         });
       }
+      commit();
       onClose();
     } finally {
       setSaving(false);
@@ -100,11 +102,17 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
         word
           ? undefined
           : source.lookupState === 'pending'
-            ? "No connection — the definition will fill in later"
+            ? 'No connection — the definition will fill in later'
             : hasDefinition
-              ? 'Add the sentence you found it in'
+              ? // The phonetic, as a dictionary would set it. It used to read "Add the
+                // sentence you found it in", which advertised the wrong field: you open
+                // this sheet to read the meaning first.
+                active.phonetic
               : 'No dictionary entry — record your own meaning'
       }
+      // Opened to be read before it is filled in. Focusing the first field scrolled the
+      // definition off screen and raised the keyboard over what was left.
+      autoFocusField={false}
       footer={
         <button
           type="button"
@@ -117,15 +125,6 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
       }
     >
       <div className="space-y-5">
-        {/* Deciding between a dozen senses is the moment a second opinion helps most —
-            but following a link from here used to lose the unsaved word entirely, so it
-            commits first. The label says so rather than saving behind your back. */}
-        <ReferenceLinks
-          term={term || active.term}
-          label={word ? 'Save changes & look up' : 'Save & look up'}
-          beforeNavigate={submit}
-        />
-
         {word && (
           <label className="block">
             <span className="label">Word</span>
@@ -149,9 +148,12 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
                       type="button"
                       onClick={() => setPrimarySense(index)}
                       aria-pressed={selected}
+                      // Solid rule, darker surface, and full-strength ink — three cues, so
+                      // the choice is still legible once a greyscale display has thrown
+                      // the hue away.
                       className={`flex w-full gap-2.5 border-l-2 py-2 pl-2.5 text-left text-[0.9375rem] leading-snug transition-colors ${
                         selected
-                          ? 'border-rubric bg-rubric-tint/60 text-ink'
+                          ? 'border-rubric bg-rubric-tint text-ink'
                           : 'border-transparent text-ink-faint hover:border-rule hover:text-ink-soft'
                       }`}
                     >
@@ -177,12 +179,15 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
         )}
 
         {senses.length === 1 && (
-          <p className="hanging text-ink-soft">
-            <span className="pr-1.5 text-ink-faint italic">
-              {abbreviatePartOfSpeech(senses[0].partOfSpeech)}
-            </span>
-            {senses[0].definition}
-          </p>
+          <div>
+            <p className="label">Definition</p>
+            <p className="hanging mt-1.5 text-ink-soft">
+              <span className="pr-1.5 text-ink-faint italic">
+                {abbreviatePartOfSpeech(senses[0].partOfSpeech)}
+              </span>
+              {senses[0].definition}
+            </p>
+          </div>
         )}
 
         <label className="block">
@@ -223,6 +228,18 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
             className="mt-1.5 w-full resize-none border border-rule bg-transparent p-2.5 leading-relaxed outline-none focus:border-rubric"
           />
         </label>
+
+        <hr className="rule-line" />
+
+        {/* Last, matching WordDetailSheet: a fallback for when the dictionary is thin,
+            not the headline. Following a link from here used to lose the unsaved word
+            entirely, so it commits first — and its own label says so, which is why this
+            keeps the label rather than sitting under a heading of its own. */}
+        <ReferenceLinks
+          term={term || active.term}
+          label={word ? 'Save changes & look up' : 'Save & look up'}
+          beforeNavigate={submit}
+        />
       </div>
     </Sheet>
   );
