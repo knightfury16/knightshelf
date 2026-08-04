@@ -361,3 +361,81 @@ describe('commitMessage', () => {
     expect(commitMessage(base)).toBe('Sync from Knightshelf');
   });
 });
+
+describe('reading a version 1 file', () => {
+  /** How a pre-trimming file stored a word: every sense, synonyms included. */
+  const legacyWord = {
+    id: 'w1',
+    bookId: 'b1',
+    term: 'sheet',
+    senses: [
+      { partOfSpeech: 'noun', definition: 'A thin bed cloth.', synonyms: ['bedsheet'] },
+      { partOfSpeech: 'noun', definition: 'A rope controlling a sail.', synonyms: ['line'] },
+    ],
+    primarySense: 1,
+    starred: false,
+    lookupState: 'resolved',
+    contextSentence: 'He hauled the sheet taut.',
+    page: '114',
+    addedAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  const legacyFile = JSON.stringify({ version: 1, books: [book()], words: [legacyWord] });
+
+  it('is still accepted, and trims each word to the sense the reader kept', () => {
+    const parsed = parseRemoteLibrary(legacyFile);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const [word] = parsed.value.data.words;
+    expect(word.senses).toHaveLength(1);
+    expect(word.senses[0].definition).toBe('A rope controlling a sail.');
+    expect(word.senses[0].synonyms).toBeUndefined();
+    expect(word.primarySense).toBe(0);
+  });
+
+  it('preserves everything the reader supplied', () => {
+    const parsed = parseRemoteLibrary(legacyFile);
+    if (!parsed.ok) return;
+
+    const [word] = parsed.value.data.words;
+    expect(word.contextSentence).toBe('He hauled the sheet taut.');
+    expect(word.page).toBe('114');
+    expect(word.updatedAt).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('does not look like a change against an already-trimmed local record', async () => {
+    /**
+     * The regression this guards against: an untrimmed remote and a trimmed local
+     * record differ only in shape, so the merge would treat it as a real edit and could
+     * strip the device — worse on every sync. Normalising on read makes them equal.
+     */
+    const local = library([book()], [
+      {
+        ...legacyWord,
+        senses: [{ partOfSpeech: 'noun', definition: 'A rope controlling a sail.' }],
+        primarySense: 0,
+      } as never,
+    ]);
+
+    const h = harness({ local, reads: [{ status: 'ok', text: legacyFile, sha: 'sha-1' }] });
+    const report = await runSync(h.io);
+
+    expect(report).toMatchObject({ status: 'synced', pulled: false });
+    expect(h.writeLocal).not.toHaveBeenCalled();
+  });
+
+  it('rewrites the file at the current version once anything else changes', async () => {
+    const h = harness({
+      local: library([book()], [word({ id: 'w-new', term: 'gunwale' })]),
+      reads: [{ status: 'ok', text: legacyFile, sha: 'sha-1' }],
+    });
+    await runSync(h.io);
+
+    const pushed = JSON.parse(h.writeRemote.mock.calls[0][0] as string) as LibraryData;
+    // Bumped, so an older app refuses the file rather than silently diverging.
+    expect(pushed.version).toBe(SCHEMA_VERSION);
+    expect(pushed.words.every((w) => w.senses.length <= 1)).toBe(true);
+  });
+});

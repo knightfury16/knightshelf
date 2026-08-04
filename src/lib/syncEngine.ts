@@ -2,6 +2,7 @@ import type { LibraryData } from '../types';
 import { emptyLibrary } from '../types';
 import type { ReadOutcome, WriteOutcome } from '../api/github';
 import { isRemoteVersionSupported, mergeLibraries, type MergeStats } from './merge';
+import { trimWords } from './senses';
 
 /**
  * Pull, merge, push — with the network injected.
@@ -105,7 +106,13 @@ export function parseRemoteLibrary(text: string): ParseResult {
   return {
     ok: true,
     value: {
-      data: { version, books: keptBooks, words: keptWords },
+      /**
+       * Words are normalised on the way in. A version 1 file carries every sense, and
+       * comparing that against a trimmed local record would look like a difference the
+       * merge has to resolve — which is how a sync could end up stripping a device.
+       * Trimming here means both sides are always the same shape.
+       */
+      data: { version, books: keptBooks, words: trimWords(keptWords) },
       skipped: books.length - keptBooks.length + (words.length - keptWords.length),
     },
   };
