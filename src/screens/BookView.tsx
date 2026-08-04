@@ -198,8 +198,17 @@ export function BookView() {
           <WordIndex words={visible} onOpen={setDetail} showLetters={sort === 'alpha'} />
         )
       ) : (
-        /* Two columns on wide screens, the way a dictionary page actually sets. */
-        <div className="stagger divide-y divide-rule md:columns-2 md:gap-10 md:divide-y-0">
+        /**
+         * A grid on wide screens, not a multi-column flow.
+         *
+         * Columns set like a dictionary page, but they read *down* one column and then
+         * down the next — so the first and sixth words end up side by side, and a list
+         * sorted by date shows entries a week apart as neighbours. It looks like a broken
+         * sort. A grid fills left to right, so whatever sits beside a word is the word
+         * that comes after it. Ragged whitespace where entries differ in height is the
+         * price, and it is worth paying to make the order self-evident.
+         */
+        <div className="stagger divide-y divide-rule md:grid md:grid-cols-2 md:gap-x-10 md:divide-y-0">
           {visible.map((word, index) => (
             <div key={word.id} className="break-inside-avoid md:border-b md:border-rule">
               <WordEntry
