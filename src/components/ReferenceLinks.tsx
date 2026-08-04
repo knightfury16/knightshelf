@@ -83,7 +83,9 @@ export function ReferenceLinks({
               beforeNavigate ? `Save, then ${link.description.toLowerCase()}` : link.description
             }
             onClick={(event) => void handleClick(event, link.href)}
-            className="label text-rubric underline decoration-rubric/30 transition-opacity hover:opacity-70"
+            // A full-strength underline: at 30% it was the only thing marking these as
+            // links, and a faint rule in a desaturated accent is not a mark at all.
+            className="label text-rubric underline decoration-rubric underline-offset-2 transition-opacity hover:opacity-70"
           >
             {link.label}
           </a>

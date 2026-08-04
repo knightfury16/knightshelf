@@ -5,6 +5,7 @@ import { useLibrary } from '../state/LibraryContext';
 import { abbreviatePartOfSpeech, formatEntryDate } from '../lib/lexicon';
 import { indexOfKeptSense, senseForRecord, synonymsForKeptSense } from '../lib/senses';
 import { useCachedLookup } from '../lib/hooks';
+import { commit, warn } from '../lib/haptics';
 import { PencilIcon, RefreshIcon, SpeakerIcon, StarIcon, TrashIcon } from './Icons';
 import { ReferenceLinks } from './ReferenceLinks';
 
@@ -96,6 +97,9 @@ export function WordDetailSheet({
         },
         missing: { tone: 'bad', text: 'This word is no longer in your shelf.' },
       };
+      // Behind an icon with a small result message, so the outcome is easy to miss.
+      if (outcome === 'updated') commit();
+      else warn();
       setRefetchMessage(messages[outcome]);
     } finally {
       setRefetching(false);
@@ -133,7 +137,11 @@ export function WordDetailSheet({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setConfirmingDelete(true)}
+              onClick={() => {
+                // The footer swaps to a confirm pair; a distinct pulse says so.
+                warn();
+                setConfirmingDelete(true);
+              }}
               className="flex min-h-11 w-11 shrink-0 items-center justify-center border border-rule text-ink-faint transition-colors hover:border-rubric hover:text-rubric"
               aria-label={`Remove ${word.term}`}
             >
@@ -156,7 +164,10 @@ export function WordDetailSheet({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => void updateWord(word.id, { starred: !word.starred })}
+            onClick={() => {
+              commit();
+              void updateWord(word.id, { starred: !word.starred });
+            }}
             aria-pressed={word.starred}
             className={`flex min-h-11 items-center gap-2 border px-3 transition-colors ${
               word.starred
@@ -248,9 +259,13 @@ export function WordDetailSheet({
                       }
                       aria-pressed={isPrimary}
                       disabled={choices.length === 1}
+                      // Three redundant cues for "this is the sense your book meant": a
+                      // solid rule, a genuinely darker surface, and full-strength ink
+                      // against faint. Any one of them survives a greyscale display; the
+                      // tint alone did not.
                       className={`flex w-full gap-2.5 border-l-2 py-2 pl-2.5 text-left text-[0.9375rem] leading-snug transition-colors ${
                         isPrimary
-                          ? 'border-rubric bg-rubric-tint/60 text-ink'
+                          ? 'border-rubric bg-rubric-tint text-ink'
                           : 'border-transparent text-ink-faint hover:border-rule hover:text-ink-soft'
                       }`}
                     >

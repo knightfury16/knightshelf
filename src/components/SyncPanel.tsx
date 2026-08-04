@@ -345,7 +345,14 @@ export function SyncPanel() {
 
           {message && (
             <div className={`border-l-2 ${TONE_BORDER[message.tone]} pl-3.5 text-sm`}>
-              <p className={message.tone === 'bad' ? 'text-rubric' : 'text-ink-soft'}>
+              {/* Weight carries the tone alongside the colour. The left border already
+                  distinguishes the three tones by luma, so this is reinforcement rather
+                  than the only signal. */}
+              <p
+                className={
+                  message.tone === 'bad' ? 'font-medium text-rubric' : 'text-ink-soft'
+                }
+              >
                 {message.text}
               </p>
               {message.detail && <p className="mt-1 text-ink-soft">{message.detail}</p>}

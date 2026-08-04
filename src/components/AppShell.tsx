@@ -47,7 +47,11 @@ function NavBar() {
                   // 44px+ target, generous on a phone and unobtrusive on desktop.
                   'group relative flex flex-1 flex-col items-center gap-1 py-2.5 md:flex-none md:flex-row md:gap-2 md:px-3 md:py-2',
                   'min-h-11 transition-colors',
-                  isActive ? 'text-rubric' : 'text-ink-faint hover:text-ink-soft',
+                  // The active tab steps to full-strength ink rather than to the accent.
+                  // Rubric against ink-faint is a hue difference, which a greyscale
+                  // display flattens; ink against ink-faint is a ~100-level luma step.
+                  // The rule below keeps the accent, as the colour marker.
+                  isActive ? 'text-ink' : 'text-ink-faint hover:text-ink-soft',
                 ].join(' ')
               }
             >
@@ -57,11 +61,13 @@ function NavBar() {
                   <span className="label !text-[0.625rem] !tracking-[0.12em] text-current md:!text-[0.6875rem]">
                     {label}
                   </span>
-                  {/* A printer's rule marks the active tab, rather than a pill. */}
+                  {/* A printer's rule marks the active tab, rather than a pill. Two
+                      pixels rather than one: a hairline in a desaturated accent is not
+                      a signal you can find at a glance. */}
                   <span
                     aria-hidden
                     className={[
-                      'absolute inset-x-4 top-0 h-px bg-rubric transition-opacity md:inset-x-2 md:top-auto md:bottom-0',
+                      'absolute inset-x-4 top-0 h-0.5 bg-rubric transition-opacity md:inset-x-2 md:top-auto md:bottom-0',
                       isActive ? 'opacity-100' : 'opacity-0',
                     ].join(' ')}
                   />

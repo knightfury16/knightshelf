@@ -19,5 +19,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  /**
+   * Anything that runs in node rather than the browser. The `*.node.test.ts` suffix marks
+   * a test that touches node APIs — reading a source file off disk, say — and keeps node's
+   * globals out of tsconfig.app.json, where `process.env` has no business typechecking.
+   */
+  "include": ["vite.config.ts", "vitest.config.ts", "src/**/*.node.test.ts"]
 }

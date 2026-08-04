@@ -22,5 +22,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* Node-side tests belong to tsconfig.node.json; a file cannot be in both projects. */
+  "exclude": ["src/**/*.node.test.ts"]
 }

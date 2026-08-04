@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Word } from '../types';
 import { useLibrary } from '../state/LibraryContext';
 import { abbreviatePartOfSpeech, formatEntryDate } from '../lib/lexicon';
+import { commit, warn } from '../lib/haptics';
 import { PencilIcon, SpeakerIcon, StarIcon, TrashIcon } from './Icons';
 
 /**
@@ -71,7 +72,10 @@ export function WordEntry({ word, bookTitle, onEdit, onOpen, index = 0 }: WordEn
 
         <button
           type="button"
-          onClick={() => void updateWord(word.id, { starred: !word.starred })}
+          onClick={() => {
+            commit();
+            void updateWord(word.id, { starred: !word.starred });
+          }}
           aria-label={word.starred ? `Unstar ${word.term}` : `Star ${word.term}`}
           aria-pressed={word.starred}
           className={`flex h-10 w-10 items-center justify-center transition-colors ${
@@ -152,8 +156,15 @@ export function WordEntry({ word, bookTitle, onEdit, onOpen, index = 0 }: WordEn
                   <button
                     type="button"
                     onClick={() => void updateWord(word.id, { primarySense: senseIndex })}
-                    className={`flex w-full gap-2 py-1 text-left text-[0.9375rem] leading-snug transition-colors ${
-                      isPrimary ? 'text-ink' : 'text-ink-faint hover:text-ink-soft'
+                    aria-pressed={isPrimary}
+                    // A solid rule alongside the ink/faint step, matching the sense
+                    // pickers in the two sheets. The accent-coloured number is decoration
+                    // on top; it cannot be the signal, because a desaturated display
+                    // renders it the same grey as the plain ones.
+                    className={`flex w-full gap-2 border-l-2 py-1 pl-2 text-left text-[0.9375rem] leading-snug transition-colors ${
+                      isPrimary
+                        ? 'border-rubric bg-rubric-tint text-ink'
+                        : 'border-transparent text-ink-faint hover:text-ink-soft'
                     }`}
                   >
                     <span
@@ -192,7 +203,9 @@ export function WordEntry({ word, bookTitle, onEdit, onOpen, index = 0 }: WordEn
             type="button"
             onClick={() => setExpanded((value) => !value)}
             aria-expanded={expanded}
-            className="label !tracking-[0.08em] text-rubric transition-opacity hover:opacity-70"
+            // Underlined so it reads as actionable next to the plain date label. In the
+            // accent alone it is the same grey as the date once the display desaturates.
+            className="label !tracking-[0.08em] text-rubric underline decoration-rubric underline-offset-2 transition-opacity hover:opacity-70"
           >
             {expanded ? 'Fewer senses' : `+${extraSenses} more ${extraSenses === 1 ? 'sense' : 'senses'}`}
           </button>
@@ -209,10 +222,13 @@ export function WordEntry({ word, bookTitle, onEdit, onOpen, index = 0 }: WordEn
             >
               Keep
             </button>
+            {/* Filled, not merely accented. Two underlined labels differing only in hue
+                give you no way to tell the destructive one from the safe one on a
+                desaturated display — which is the worst possible thing to leave ambiguous. */}
             <button
               type="button"
               onClick={() => void deleteWord(word.id)}
-              className="label !tracking-normal text-rubric underline decoration-rubric/40"
+              className="label !tracking-normal bg-rubric px-2 py-1 text-paper-raised"
             >
               Remove
             </button>
@@ -229,7 +245,11 @@ export function WordEntry({ word, bookTitle, onEdit, onOpen, index = 0 }: WordEn
             </button>
             <button
               type="button"
-              onClick={() => setConfirmingDelete(true)}
+              onClick={() => {
+                // The footer swaps to a confirm pair; a distinct pulse says so.
+                warn();
+                setConfirmingDelete(true);
+              }}
               aria-label={`Remove ${word.term}`}
               className="flex h-9 w-9 items-center justify-center text-ink-faint/60 transition-colors hover:text-rubric"
             >

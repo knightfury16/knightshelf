@@ -17,6 +17,21 @@ type SortMode = 'recent' | 'alpha';
 /** `entries` = full dictionary entries; `index` = words only, meanings on tap. */
 type ViewMode = 'entries' | 'index';
 
+/**
+ * One option of a segmented control, set like a tab cut into a catalogue divider.
+ *
+ * The chosen option inverts to a filled slug rather than merely taking the accent
+ * colour: an accent-coloured label sits about 13 luma from a plain one, so on a
+ * desaturated display — Android's Bedtime mode, say — the two are the same grey and
+ * you cannot tell which view you are in. A filled block against an empty one survives.
+ */
+function segmentClass(selected: boolean): string {
+  return [
+    'label px-2 py-1 transition-colors',
+    selected ? 'bg-rubric text-paper-raised' : 'group-hover:text-ink-soft',
+  ].join(' ');
+}
+
 function matches(word: Word, needle: string): boolean {
   if (!needle) return true;
   const haystack = [
@@ -122,7 +137,10 @@ export function BookView() {
 
           <hr className="rule-line" />
 
-          {/* Two segmented groups, kept apart so both fit a 412px phone. */}
+          {/* Two segmented groups, kept apart so both fit a 412px phone. The chosen
+              option inverts to a filled slug — like a tab cut into a catalogue divider
+              — because an accent-coloured label sits only ~13 luma from a plain one and
+              so disappears the moment the display is desaturated. */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center">
               {(['recent', 'alpha'] as const).map((mode) => (
@@ -131,11 +149,12 @@ export function BookView() {
                   type="button"
                   onClick={() => setSort(mode)}
                   aria-pressed={sort === mode}
-                  className={`label min-h-11 pr-2.5 transition-colors ${
-                    sort === mode ? 'text-rubric' : 'hover:text-ink-soft'
-                  }`}
+                  // 44px hit area on the button; the slug inside stays compact.
+                  className="group flex min-h-11 items-center pr-1"
                 >
-                  {mode === 'recent' ? 'Recent' : 'A–Z'}
+                  <span className={segmentClass(sort === mode)}>
+                    {mode === 'recent' ? 'Recent' : 'A–Z'}
+                  </span>
                 </button>
               ))}
             </div>
@@ -147,11 +166,11 @@ export function BookView() {
                   type="button"
                   onClick={() => setView(mode)}
                   aria-pressed={view === mode}
-                  className={`label min-h-11 pl-2.5 transition-colors ${
-                    view === mode ? 'text-rubric' : 'hover:text-ink-soft'
-                  }`}
+                  className="group flex min-h-11 items-center pl-1"
                 >
-                  {mode === 'entries' ? 'Entries' : 'Index'}
+                  <span className={segmentClass(view === mode)}>
+                    {mode === 'entries' ? 'Entries' : 'Index'}
+                  </span>
                 </button>
               ))}
             </div>
@@ -240,7 +259,9 @@ export function BookView() {
             {book.status === 'finished' ? 'Move back to reading' : 'Mark as finished'}
           </button>
 
-          <div className="border border-rubric/40 bg-rubric-tint/50 p-3.5">
+          {/* Full-strength border and fill: this panel is the only thing separating
+              "mark as finished" from "delete the book and everything in it". */}
+          <div className="border border-rubric bg-rubric-tint p-3.5">
             <p className="text-sm text-ink-soft">
               Removing this book also removes its {bookWords.length}{' '}
               {bookWords.length === 1 ? 'word' : 'words'}.

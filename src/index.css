@@ -7,6 +7,20 @@
 /* ---------------------------------------------------------------------------
    Palette — laid paper, iron-gall ink, vermilion rubrication.
    Scribes used red for headings and initials; the accent earns its place.
+
+   Greyscale is a hard constraint, not a nicety. Android's Bedtime mode desaturates
+   the whole display and cannot be detected from CSS, so the palette has to survive
+   it unconditionally. A greyscale display collapses colour by luma
+   (0.2126R + 0.7152G + 0.0722B), and red scores badly there because green carries
+   most of the weight: `--rubric` lands within ~13 of `--ink-soft` in light mode and
+   *below* `--ink-soft` in dark. No amount of tuning fixes that while the accent stays
+   a red, so the rule is structural instead:
+
+     state must never rest on hue alone.
+
+   Pressed and selected controls invert to a filled slug; active items step to `--ink`;
+   selected rows sit on `--rubric-tint`, which is kept far enough from `--paper-raised`
+   in luma to read as a real change of surface. See palette.test.ts, which measures it.
    --------------------------------------------------------------------------- */
 :root {
   --paper: #f2eee4;
@@ -18,7 +32,9 @@
   --rule: #d5cdbd;
   --rule-strong: #bcb2a0;
   --rubric: #a93a25;
-  --rubric-tint: #f6e6e0;
+  /* Was #f6e6e0, which sat 16 luma from --paper-raised — and lighter than
+     --paper-sunk, so a selected row read as *less* prominent than a plain panel. */
+  --rubric-tint: #e0cec2;
   --shadow-book: 0 1px 2px rgb(31 27 22 / 0.14), 0 6px 14px -6px rgb(31 27 22 / 0.22);
   --grain-blend: multiply;
   --grain-opacity: 0.055;
@@ -33,8 +49,11 @@
   --ink-faint: #736857;
   --rule: #332d25;
   --rule-strong: #47402f;
-  --rubric: #dc6749;
-  --rubric-tint: #2a1a14;
+  /* Lifted from #dc6749, which fell *below* --ink-faint in luma: the accent read as
+     the dimmest thing on screen once the hue was gone. */
+  --rubric: #e8785a;
+  /* Was #2a1a14 — 2 luma from --paper-raised, so a selected row was invisible. */
+  --rubric-tint: #42332a;
   --shadow-book: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 18px -8px rgb(0 0 0 / 0.7);
   --grain-blend: screen;
   --grain-opacity: 0.03;

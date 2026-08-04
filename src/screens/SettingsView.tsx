@@ -6,6 +6,12 @@ import {
   watchSystemTheme,
   type ThemeChoice,
 } from '../state/theme';
+import {
+  commit,
+  hapticsEnabled,
+  hapticsSupported,
+  setHapticsEnabled,
+} from '../lib/haptics';
 import { readStorageStatus, requestPersistentStorage, type StorageStatus } from '../lib/persist';
 import { buildXlsxBlob, downloadBlob, exportFileName } from '../lib/excel';
 import { MoonIcon, SettingsIcon, SunIcon } from '../components/Icons';
@@ -50,6 +56,7 @@ export function SettingsView() {
   const { books, words, pendingCount } = useLibrary();
 
   const [choice, setChoice] = useState<ThemeChoice>(() => readThemeChoice());
+  const [haptics, setHaptics] = useState<boolean>(() => hapticsEnabled());
   const [storage, setStorage] = useState<StorageStatus | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -69,6 +76,14 @@ export function SettingsView() {
   function pickTheme(next: ThemeChoice): void {
     setChoice(next);
     applyTheme(next);
+  }
+
+  function toggleHaptics(): void {
+    const next = !haptics;
+    setHapticsEnabled(next);
+    setHaptics(next);
+    // Switching it on should demonstrate itself; switching it off must stay silent.
+    if (next) commit();
   }
 
   async function protectStorage(): Promise<void> {
@@ -120,9 +135,12 @@ export function SettingsView() {
               type="button"
               onClick={() => pickTheme(value)}
               aria-pressed={choice === value}
+              // Pressed inverts to a filled slug. Outlined-and-accented against
+              // outlined-and-soft is a hue difference of ~13 luma, which vanishes on a
+              // desaturated display; a filled block against an empty one cannot.
               className={`flex min-h-11 flex-1 items-center justify-center gap-2 border transition-colors ${
                 choice === value
-                  ? 'border-rubric text-rubric'
+                  ? 'border-rubric bg-rubric text-paper-raised'
                   : 'border-rule text-ink-soft hover:border-rule-strong'
               }`}
             >
@@ -131,6 +149,32 @@ export function SettingsView() {
             </button>
           ))}
         </div>
+
+        {/* Absent on iOS and on desktop, where there is no Vibration API to switch. */}
+        {hapticsSupported() && (
+          <>
+            <button
+              type="button"
+              onClick={toggleHaptics}
+              aria-pressed={haptics}
+              className={`mt-2 flex min-h-11 w-full items-center justify-between border px-3 transition-colors ${
+                haptics
+                  ? 'border-rubric bg-rubric text-paper-raised'
+                  : 'border-rule text-ink-soft hover:border-rule-strong'
+              }`}
+            >
+              <span className="label text-current">Haptics</span>
+              <span className="label text-current">{haptics ? 'On' : 'Off'}</span>
+            </button>
+
+            <p className="mt-2 text-sm text-ink-faint">
+              A short pulse on each press, so a tap that saved a word feels different from
+              one that missed. If nothing happens with this on, your phone's own touch
+              vibration is switched off — Android reports success either way, so the app
+              cannot tell.
+            </p>
+          </>
+        )}
       </section>
 
       <hr className="rule-line" />
@@ -185,16 +229,19 @@ export function SettingsView() {
         {storage?.supported && (
           <>
             <p className="mt-2.5 leading-relaxed text-ink-soft">
+              {/* Weight as well as colour. These two words are the whole status, and the
+                  accent sits within ~13 luma of the sentence around it, so on a greyscale
+                  display the emphasis simply isn't there. */}
               {storage.persisted ? (
                 <>
-                  <span className="text-rubric">Protected.</span> This browser won't clear your
-                  words to reclaim space.
+                  <span className="font-medium text-rubric">Protected.</span> This browser won't
+                  clear your words to reclaim space.
                 </>
               ) : (
                 <>
-                  <span className="text-rubric">Best effort.</span> The browser is allowed to
-                  clear your words if the device runs low on space. Asking for protection is
-                  worth doing now.
+                  <span className="font-medium text-rubric">Best effort.</span> The browser is
+                  allowed to clear your words if the device runs low on space. Asking for
+                  protection is worth doing now.
                 </>
               )}
             </p>
