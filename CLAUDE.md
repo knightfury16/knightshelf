@@ -63,7 +63,25 @@ content is the only injection vector in an app shaped like this.
 
 **`Sheet` focuses the first form field, not the first focusable.** A naive query
 lands on the Close button, which swallows typing (space activates it) and leaves the
-mobile keyboard shut. Use `data-autofocus` to override.
+mobile keyboard shut. Use `data-autofocus` to override, or `autoFocusField={false}` to
+focus nothing — a sheet you open to *read* must not raise the keyboard, which scrolls the
+content you came for off screen. `WordFormSheet` opts out for that reason.
+
+**State must never rest on hue alone.** Android's Bedtime mode desaturates the whole
+display and **cannot be detected** — there is no media query for it (`forced-colors` is
+Windows High Contrast, a different thing), so there is nothing to switch on. A greyscale
+display collapses colour by luma, where green carries most of the weight, so a red accent
+scores badly: `--rubric` lands within ~13 of `--ink-soft` in light mode and *below* it in
+dark. No palette tuning fixes that while the accent stays red. So pressed and selected
+controls **invert to a filled slug**, active items step to `--ink`, and selected rows sit
+on `--rubric-tint`. `src/lib/palette.node.test.ts` measures the separations that must
+hold — but it cannot catch a *new* control reaching for `text-rubric` to mean "active",
+so don't.
+
+**Tests that touch node APIs are named `*.node.test.ts`.** That suffix is compiled by
+`tsconfig.node.json` and excluded from `tsconfig.app.json`, which keeps `process` out of
+scope for a static site that has no such thing. `index.css?raw` is not an escape hatch:
+Vite's stylesheet pipeline claims the request and hands back an empty string.
 
 ## Environment traps that waste time
 
@@ -92,3 +110,8 @@ loaded on purpose), IBM Plex Mono for catalogue-card metadata. Entries are set a
 real dictionary entries and the book's sentence appears as an attributed citation —
 the move the OED makes when citing literature for a sense. Keep new UI inside this
 language; don't introduce a second visual idiom.
+
+Presses give a short haptic pulse via `src/lib/haptics.ts` — `tap` fires from one
+delegated `pointerdown` listener installed in `main.tsx`, so handlers only ever reach for
+`commit` or `warn`. Don't add per-button `tap()` calls; the delegation already covers
+them, and a second pulse in the same gesture reads as one long buzz.
