@@ -101,10 +101,48 @@ export function saveSyncConfig(config: SyncConfig): void {
   }
 }
 
+const REVISIONS_KEY = 'knightshelf.sync.revisions';
+
+/**
+ * Revisions this device last agreed with the remote, per book.
+ *
+ * Advisory only — they narrow which book files a sync needs to fetch. A stale entry
+ * costs a redundant fetch or a brief delay, never a lost record, because merging still
+ * works from whatever the fetched file actually contains.
+ */
+export function readKnownRevisions(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(REVISIONS_KEY);
+    if (!raw) return {};
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return {};
+
+    const revisions: Record<string, string> = {};
+    for (const [bookId, revision] of Object.entries(parsed)) {
+      if (typeof revision === 'string') revisions[bookId] = revision;
+    }
+    return revisions;
+  } catch {
+    // A corrupt entry simply means everything gets fetched again.
+    return {};
+  }
+}
+
+export function writeKnownRevisions(revisions: Record<string, string>): void {
+  try {
+    localStorage.setItem(REVISIONS_KEY, JSON.stringify(revisions));
+  } catch {
+    // Non-fatal: the next sync fetches more than it strictly needs to.
+  }
+}
+
 /** Removes the credential and, unless asked to keep it, the repository too. */
 export function clearSyncConfig(options: { keepRepo?: boolean } = {}): void {
   try {
     localStorage.removeItem(TOKEN_KEY);
+    // Agreed revisions describe a specific remote, so they go with the credential.
+    localStorage.removeItem(REVISIONS_KEY);
     if (!options.keepRepo) localStorage.removeItem(REPO_KEY);
   } catch {
     // Nothing useful to do if storage is unavailable.

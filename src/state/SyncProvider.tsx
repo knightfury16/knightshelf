@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as store from '../db/store';
 import { readLibraryFile, verifyAccess, writeLibraryFile } from '../api/github';
-import { runSync, type SyncIO, type SyncReport } from '../lib/syncEngine';
+import type { SyncReport } from '../lib/syncEngine';
+import { runShardedSync, type ShardedSyncIO } from '../lib/shardedSync';
 import { stableStringify } from '../lib/merge';
 import { nowIso } from '../lib/id';
 import { useLibrary } from './LibraryContext';
@@ -9,9 +10,11 @@ import {
   clearSyncConfig,
   parseRepoInput,
   readRepoRef,
+  readKnownRevisions,
   readSyncConfig,
   readToken,
   saveSyncConfig,
+  writeKnownRevisions,
   type RepoRef,
 } from './syncConfig';
 import { SyncContext, type ConnectOutcome, type SyncActivity, type SyncValue } from './SyncContext';
@@ -82,18 +85,23 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setActivity('syncing');
 
     try {
-      const io: SyncIO = {
+      const io: ShardedSyncIO = {
         readLocal: () => store.exportLibrary(),
         writeLocal: async (data) => {
           await store.writeRecords(data.books, data.words);
           // Bring the in-memory copy back in step with what just landed on disk.
           await reload();
         },
-        readRemote: () => readLibraryFile(config),
-        writeRemote: (text, sha, message) => writeLibraryFile(config, text, sha, message),
+        // The path varies per file now, so the configured path is overridden per call.
+        readFile: (path) => readLibraryFile({ ...config, path }),
+        writeFile: (path, text, sha, message) =>
+          writeLibraryFile({ ...config, path }, text, sha, message),
+        // Stored synchronously in localStorage; the engine's contract is async.
+        readKnownRevisions: async () => readKnownRevisions(),
+        writeKnownRevisions: async (revisions) => writeKnownRevisions(revisions),
       };
 
-      const report = await runSync(io);
+      const report = await runShardedSync(io);
       setLastReport(report);
 
       if (report.status === 'synced') {
