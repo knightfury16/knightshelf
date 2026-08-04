@@ -10,11 +10,17 @@
  */
 
 /**
- * 2 — records hold only the sense the reader kept, without synonyms. The full sense
- * list lives in the local lookup cache, which is never synced. Version 1 files are
- * still readable; a version 1 app refuses a version 2 file rather than drifting.
+ * Sync format version.
+ *
+ * 1 — a single file holding every book and word, with all senses.
+ * 2 — records hold only the sense the reader kept, without synonyms; the full list
+ *     lives in the local lookup cache, which is never synced.
+ * 3 — split across files: a manifest of books, plus one file per book's words.
+ *
+ * Older formats stay readable so they can be migrated. An older *app* refuses a newer
+ * file outright rather than silently dropping fields it doesn't understand.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** One dictionary sense. A word like "sheet" has several wildly different ones. */
 export type Sense = {
