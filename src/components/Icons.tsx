@@ -109,6 +109,16 @@ export function PencilIcon({ className }: IconProps) {
   );
 }
 
+/** Circular arrow, for asking the dictionary again. */
+export function RefreshIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M19 12a7 7 0 11-2.05-4.95" />
+      <path d="M19.5 4.5V8h-3.5" />
+    </svg>
+  );
+}
+
 export function SunIcon({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

@@ -106,11 +106,25 @@ function parseEntries(payload: unknown): ParsedEntry {
  * Cache hits keep repeat lookups instant and keep the archive readable with no
  * connection. Failures are never cached — only definitive found/notfound answers.
  */
-export async function lookupWord(rawTerm: string): Promise<LookupOutcome> {
+export interface LookupOptions {
+  /**
+   * Skip the cache and ask the dictionary again.
+   *
+   * Needed for a user-initiated refetch: `notfound` answers are cached, so a plain
+   * retry would keep returning the remembered miss without ever touching the network.
+   * Asking again is the entire point of pressing the button.
+   */
+  force?: boolean;
+}
+
+export async function lookupWord(
+  rawTerm: string,
+  options: LookupOptions = {},
+): Promise<LookupOutcome> {
   const term = rawTerm.trim().toLowerCase();
   if (!term) return { status: 'notfound' };
 
-  const cached = await readCachedLookup(term).catch(() => undefined);
+  const cached = options.force ? undefined : await readCachedLookup(term).catch(() => undefined);
   if (cached) {
     return cached.found
       ? {
