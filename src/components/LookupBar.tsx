@@ -6,6 +6,7 @@ import { abbreviatePartOfSpeech } from '../lib/lexicon';
 import type { LookupState, Sense } from '../types';
 import { WordFormSheet, type WordDraft } from './WordFormSheet';
 import { commit } from '../lib/haptics';
+import type { LookupRetryOutcome } from '../lib/refetch';
 import { SpeakerIcon } from './Icons';
 import { ReferenceLinks } from './ReferenceLinks';
 
@@ -152,6 +153,46 @@ export function LookupBar({
     } finally {
       setSaving(false);
     }
+  }
+
+  /**
+   * Ask the dictionary again for the word being captured, before it is saved.
+   *
+   * The saved-word refetch works by record id, which a draft has not got — so the retry
+   * has to live here, where the lookup state does, and be handed down to the sheet.
+   *
+   * `force` matters: a `notfound` answer is cached, so without it a retry would keep
+   * returning the remembered miss without touching the network.
+   */
+  async function retryLookup(): Promise<LookupRetryOutcome> {
+    const query = trimmed;
+    if (!query) return 'notfound';
+
+    setPreview({ state: 'looking' });
+    const outcome = await lookupWord(query, { force: true });
+
+    /**
+     * No staleness guard needed: the only other writer to `preview` is the debounced
+     * effect, which fires when the typed term changes — and the sheet this is called
+     * from covers the input, so it cannot.
+     */
+    if (outcome.status === 'found') {
+      setPreview({
+        state: 'found',
+        senses: outcome.senses,
+        phonetic: outcome.phonetic,
+        audioUrl: outcome.audioUrl,
+      });
+      return 'updated';
+    }
+
+    if (outcome.status === 'notfound') {
+      setPreview({ state: 'notfound' });
+      return 'notfound';
+    }
+
+    setPreview({ state: 'offline' });
+    return 'unavailable';
   }
 
   const primary = preview.state === 'found' ? preview.senses[0] : undefined;
@@ -306,6 +347,7 @@ export function LookupBar({
         }}
         bookId={bookId}
         draft={draftFor(preview)}
+        onRetryLookup={retryLookup}
       />
     </>
   );

@@ -3,7 +3,13 @@ import { Sheet } from './Sheet';
 import type { LookupState, Sense, Word } from '../types';
 import { useLibrary } from '../state/LibraryContext';
 import { abbreviatePartOfSpeech } from '../lib/lexicon';
-import { commit } from '../lib/haptics';
+import { commit, warn } from '../lib/haptics';
+import {
+  refetchMessageFor,
+  type LookupRetryOutcome,
+  type RefetchMessage,
+} from '../lib/refetch';
+import { RefreshIcon } from './Icons';
 import { ReferenceLinks } from './ReferenceLinks';
 
 /**
@@ -26,9 +32,22 @@ interface WordFormSheetProps {
   /** Provide to edit an existing entry; omit to capture a new one from `draft`. */
   word?: Word;
   draft?: WordDraft;
+  /**
+   * Ask the dictionary again for an unsaved capture. Omit where there is nothing to
+   * retry — editing a saved word offers this from the detail sheet instead, which can
+   * write the answer straight to the record.
+   */
+  onRetryLookup?: () => Promise<LookupRetryOutcome>;
 }
 
-export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSheetProps) {
+export function WordFormSheet({
+  open,
+  onClose,
+  bookId,
+  word,
+  draft,
+  onRetryLookup,
+}: WordFormSheetProps) {
   const { saveWord, updateWord } = useLibrary();
 
   const source: WordDraft | undefined = word ?? draft;
@@ -39,16 +58,26 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
   const [page, setPage] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryMessage, setRetryMessage] = useState<RefetchMessage | null>(null);
 
-  // Reload the form whenever it opens against a different word.
+  /**
+   * Reload the form when it opens, or when it opens against a different word.
+   *
+   * Keyed on the word's identity rather than on `source`, because a capture draft is
+   * rebuilt on every render of the lookup bar — so keying on the object meant any
+   * re-render while the sheet was open (a settling debounce, or now a retry landing a
+   * definition) silently wiped the sentence you had just typed.
+   */
   useEffect(() => {
-    if (!open || !source) return;
-    setTerm(source.term);
+    if (!open) return;
+    setTerm(word?.term ?? draft?.term ?? '');
     setPrimarySense(word?.primarySense ?? 0);
     setContextSentence(word?.contextSentence ?? '');
     setPage(word?.page ?? '');
     setNote(word?.note ?? '');
-  }, [open, source, word]);
+    setRetryMessage(null);
+  }, [open, word?.id, word, draft?.term]);
 
   if (!source) return null;
 
@@ -57,6 +86,27 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
   const active: WordDraft = source;
   const senses = active.senses;
   const hasDefinition = senses.length > 0;
+
+  async function retry(): Promise<void> {
+    if (!onRetryLookup || retrying) return;
+
+    setRetrying(true);
+    setRetryMessage(null);
+    try {
+      const outcome = await onRetryLookup();
+      // A definition that arrives now replaces whatever list the picker was showing, so
+      // an index chosen against the old list would point at the wrong sense.
+      if (outcome === 'updated') {
+        setPrimarySense(0);
+        commit();
+      } else {
+        warn();
+      }
+      setRetryMessage(refetchMessageFor(outcome, { saved: false }));
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   async function submit(): Promise<void> {
     const trimmed = term.trim();
@@ -98,18 +148,11 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
       open={open}
       onClose={onClose}
       title={word ? 'Edit entry' : source.term}
-      subtitle={
-        word
-          ? undefined
-          : source.lookupState === 'pending'
-            ? 'No connection — the definition will fill in later'
-            : hasDefinition
-              ? // The phonetic, as a dictionary would set it. It used to read "Add the
-                // sentence you found it in", which advertised the wrong field: you open
-                // this sheet to read the meaning first.
-                active.phonetic
-              : 'No dictionary entry — record your own meaning'
-      }
+      // The phonetic, as a dictionary would set it. It used to read "Add the sentence you
+      // found it in", which advertised the wrong field — you open this sheet to read the
+      // meaning first — and then explained a missing definition, which the block below
+      // now does without repeating itself.
+      subtitle={word ? undefined : active.phonetic}
       // Opened to be read before it is filled in. Focusing the first field scrolled the
       // definition off screen and raised the keyboard over what was left.
       autoFocusField={false}
@@ -136,9 +179,36 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
           </label>
         )}
 
-        {senses.length > 1 && (
-          <fieldset>
-            <legend className="label">Which sense did your book mean?</legend>
+        {/* One block for the definition, whatever state it is in — including no
+            definition at all, which is exactly when the retry matters and used to be the
+            one case with nothing on screen to hang it off. */}
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <p className="label">
+              {senses.length > 1
+                ? `${senses.length} senses · tap the one your book meant`
+                : senses.length === 1
+                  ? 'Definition'
+                  : 'No definition yet'}
+            </p>
+
+            {/* Only for an unsaved capture. A saved word retries from the detail sheet,
+                which can write the answer straight to the record. */}
+            {onRetryLookup && (
+              <button
+                type="button"
+                onClick={() => void retry()}
+                disabled={retrying}
+                aria-label={`Fetch the definition of ${active.term} again`}
+                title="Fetch the definition again"
+                className="-mt-2 -mr-2 flex h-10 w-10 shrink-0 items-center justify-center text-ink-faint transition-colors hover:text-rubric disabled:opacity-40"
+              >
+                <RefreshIcon className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+          </div>
+
+          {senses.length > 1 && (
             <ol className="mt-2 space-y-1">
               {senses.map((sense, index) => {
                 const selected = index === primarySense;
@@ -175,20 +245,35 @@ export function WordFormSheet({ open, onClose, bookId, word, draft }: WordFormSh
                 );
               })}
             </ol>
-          </fieldset>
-        )}
+          )}
 
-        {senses.length === 1 && (
-          <div>
-            <p className="label">Definition</p>
+          {senses.length === 1 && (
             <p className="hanging mt-1.5 text-ink-soft">
               <span className="pr-1.5 text-ink-faint italic">
                 {abbreviatePartOfSpeech(senses[0].partOfSpeech)}
               </span>
               {senses[0].definition}
             </p>
-          </div>
-        )}
+          )}
+
+          {senses.length === 0 && (
+            <p className="mt-1 text-sm text-ink-soft">
+              {active.lookupState === 'pending'
+                ? "Save it and the definition fills itself in once you're back online — or ask again now."
+                : 'The dictionary has no entry for this word. Write your own meaning below.'}
+            </p>
+          )}
+
+          {retryMessage && (
+            <p
+              className={`animate-bleed mt-2.5 border-l-2 pl-3 text-sm text-ink-soft ${
+                retryMessage.tone === 'bad' ? 'border-rubric' : 'border-rule'
+              }`}
+            >
+              {retryMessage.text}
+            </p>
+          )}
+        </div>
 
         <label className="block">
           <span className="label">Sentence from the book</span>
