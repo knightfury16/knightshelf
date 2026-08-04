@@ -47,7 +47,7 @@ function writeStoredString(key: string, value: string | null): void {
 }
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const { books, words, reload } = useLibrary();
+  const { books, words, reload, status } = useLibrary();
 
   const [repo, setRepo] = useState<RepoRef | null>(() => readRepoRef());
   const [hasToken, setHasToken] = useState<boolean>(() => readToken() !== null);
@@ -112,10 +112,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [reload]);
 
-  // Pull as soon as the app opens, so another device's words are there before you read.
+  /**
+   * Pull as soon as the app opens, so another device's words are there before you read.
+   *
+   * Gated on the library being ready, because loading also runs the sense-trimming
+   * migration: syncing first could merge a record into its trimmed shape before the
+   * full sense list had been preserved in the local cache.
+   */
   useEffect(() => {
-    if (configured) void syncNow();
-  }, [configured, syncNow]);
+    if (configured && status === 'ready') void syncNow();
+  }, [configured, status, syncNow]);
 
   // Push a while after the last edit, rather than on every keystroke.
   useEffect(() => {

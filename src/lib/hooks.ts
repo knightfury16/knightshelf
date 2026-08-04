@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { readCachedLookup, type CachedLookup } from '../db/store';
 
 /**
  * Delays a value so effects keyed on it don't fire on every keystroke.
@@ -40,6 +41,45 @@ export function usePersistedState<T extends string>(key: string, fallback: T): [
   }
 
   return [value, update];
+}
+
+/**
+ * The dictionary's own data for a word, from the local cache.
+ *
+ * Records hold only the sense you kept, so the full sense list and the synonyms are read
+ * from here instead. The cache is local and never synced, which is why a word pulled
+ * from another device shows nothing until it is refetched.
+ *
+ * `refreshKey` should be something that changes when the word does — its `updatedAt` —
+ * so a refetch is picked up.
+ */
+export function useCachedLookup(
+  term: string | undefined,
+  refreshKey?: string,
+): CachedLookup | undefined {
+  const [cached, setCached] = useState<CachedLookup | undefined>(undefined);
+
+  useEffect(() => {
+    if (!term) {
+      setCached(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    void readCachedLookup(term)
+      .then((entry) => {
+        if (!cancelled) setCached(entry);
+      })
+      .catch(() => {
+        if (!cancelled) setCached(undefined);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [term, refreshKey]);
+
+  return cached;
 }
 
 /** Tracks connectivity so the UI can say why a lookup was queued rather than failing silently. */

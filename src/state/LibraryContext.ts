@@ -36,6 +36,12 @@ export interface NewWordInput {
   note?: string;
 }
 
+/**
+ * Result of asking the dictionary again for a word already in the shelf.
+ * `unavailable` means the network failed, so the record was left untouched.
+ */
+export type RefetchOutcome = 'updated' | 'notfound' | 'unavailable' | 'missing';
+
 export interface LibraryValue extends LibrarySnapshot {
   createBook: (input: NewBookInput) => Promise<Book>;
   updateBook: (id: string, patch: Partial<Omit<Book, 'id'>>) => Promise<void>;
@@ -44,6 +50,8 @@ export interface LibraryValue extends LibrarySnapshot {
   saveWord: (input: NewWordInput) => Promise<Word>;
   updateWord: (id: string, patch: Partial<Omit<Word, 'id' | 'bookId'>>) => Promise<void>;
   deleteWord: (id: string) => Promise<void>;
+  /** Asks the dictionary again on demand, bypassing the cached answer. */
+  refetchDefinition: (id: string) => Promise<RefetchOutcome>;
   /**
    * Re-reads everything from IndexedDB. Used after a sync merge writes records
    * underneath the in-memory copy.

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import type { Book, BookStatus, Word } from '../types';
+import { indexOfKeptSense, trimWord } from '../lib/senses';
 import * as store from '../db/store';
 import { newId, nowIso } from '../lib/id';
 import { lookupWord } from '../api/dictionary';
@@ -11,6 +12,7 @@ import {
   type LibraryValue,
   type NewBookInput,
   type NewWordInput,
+  type RefetchOutcome,
 } from './LibraryContext';
 
 /**
@@ -66,6 +68,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.';
 }
 
+
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
     books: [],
@@ -75,6 +78,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async (): Promise<void> => {
     try {
+      /**
+       * Moves any full sense list into the local cache and trims the record. Idempotent
+       * and cheap once done, and it must complete before the first sync — otherwise a
+       * merge could trim a record here before its senses had been preserved.
+       */
+      await store.trimStoredSenses();
+
       const [books, words] = await Promise.all([store.listBooks(), store.listWords()]);
       dispatch({ type: 'loaded', books, words });
     } catch (error: unknown) {
@@ -145,7 +155,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const saveWord = useCallback(async (input: NewWordInput): Promise<Word> => {
     const stamp = nowIso();
-    const word: Word = {
+    // Only the chosen sense is stored; the full list stays in the local lookup cache.
+    const word: Word = trimWord({
       id: newId(),
       bookId: input.bookId,
       term: input.term.trim(),
@@ -160,7 +171,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       lookupState: input.lookupState,
       addedAt: stamp,
       updatedAt: stamp,
-    };
+    });
     await store.putWord(word);
     dispatch({ type: 'wordUpserted', word });
     return word;
@@ -180,6 +191,53 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const deleteWord = useCallback(async (id: string): Promise<void> => {
     await store.softDeleteWord(id);
     dispatch({ type: 'wordRemoved', id });
+  }, []);
+
+  /**
+   * Asks the dictionary again for a word already saved.
+   *
+   * A capture made on a slow connection is stored as `pending` and normally resolves
+   * itself when the network returns — this is the manual lever for when it hasn't, or
+   * when a `notfound` was really a transient failure. Bypasses the cache, since the
+   * remembered answer is exactly what we're trying to get past.
+   *
+   * On failure the record is left completely alone: a refetch must never be able to
+   * destroy a definition you already had.
+   */
+  const refetchDefinition = useCallback(async (id: string): Promise<RefetchOutcome> => {
+    const existing = await store.getWord(id);
+    if (!existing) return 'missing';
+
+    const outcome = await lookupWord(existing.term, { force: true });
+    if (outcome.status === 'unavailable') return 'unavailable';
+
+    if (outcome.status === 'notfound') {
+      // Record the miss, but keep any senses already held rather than wiping them.
+      const next: Word = { ...existing, lookupState: 'notfound', updatedAt: nowIso() };
+      await store.putWord(next);
+      dispatch({ type: 'wordUpserted', word: next });
+      return 'notfound';
+    }
+
+    /**
+     * Keep the same meaning where the dictionary still has it. Matched on the
+     * definition text, since a refetch can reorder the list and an index would
+     * silently start pointing at something else.
+     */
+    const kept = Math.max(0, indexOfKeptSense(existing, outcome.senses));
+
+    const next: Word = trimWord({
+      ...existing,
+      senses: outcome.senses,
+      phonetic: outcome.phonetic,
+      audioUrl: outcome.audioUrl,
+      primarySense: kept,
+      lookupState: 'resolved',
+      updatedAt: nowIso(),
+    });
+    await store.putWord(next);
+    dispatch({ type: 'wordUpserted', word: next });
+    return 'updated';
   }, []);
 
   const pending = useMemo(
@@ -206,14 +264,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
         const next: Word =
           outcome.status === 'found'
-            ? {
+            ? trimWord({
                 ...word,
                 senses: outcome.senses,
+                primarySense: 0,
                 phonetic: outcome.phonetic,
                 audioUrl: outcome.audioUrl,
                 lookupState: 'resolved',
                 updatedAt: nowIso(),
-              }
+              })
             : { ...word, lookupState: 'notfound', updatedAt: nowIso() };
 
         await store.putWord(next);
@@ -243,6 +302,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       saveWord,
       updateWord,
       deleteWord,
+      refetchDefinition,
       reload,
       pendingCount: pending.length,
     }),
@@ -255,6 +315,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       saveWord,
       updateWord,
       deleteWord,
+      refetchDefinition,
       reload,
       pending.length,
     ],

@@ -3,7 +3,9 @@ import { Sheet } from './Sheet';
 import type { Word } from '../types';
 import { useLibrary } from '../state/LibraryContext';
 import { abbreviatePartOfSpeech, formatEntryDate } from '../lib/lexicon';
-import { PencilIcon, SpeakerIcon, StarIcon, TrashIcon } from './Icons';
+import { indexOfKeptSense, senseForRecord, synonymsForKeptSense } from '../lib/senses';
+import { useCachedLookup } from '../lib/hooks';
+import { PencilIcon, RefreshIcon, SpeakerIcon, StarIcon, TrashIcon } from './Icons';
 import { ReferenceLinks } from './ReferenceLinks';
 
 /**
@@ -21,22 +23,83 @@ interface WordDetailSheetProps {
   onEdit: (word: Word) => void;
 }
 
-export function WordDetailSheet({ word, bookTitle, onClose, onEdit }: WordDetailSheetProps) {
-  const { updateWord, deleteWord } = useLibrary();
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+interface RefetchMessage {
+  tone: 'ok' | 'bad';
+  text: string;
+}
 
-  // Never carry an armed delete over to a different word.
+export function WordDetailSheet({
+  word: opened,
+  bookTitle,
+  onClose,
+  onEdit,
+}: WordDetailSheetProps) {
+  const { words, updateWord, deleteWord, refetchDefinition } = useLibrary();
+
+  /**
+   * Resolve the live record rather than trusting the prop.
+   *
+   * Callers pass the word they had when the sheet opened, which is a snapshot — so
+   * starring, changing the chosen sense, or refetching a definition all updated storage
+   * without the sheet ever showing it. Reading through to the library keeps what's on
+   * screen honest.
+   */
+  const word = opened ? (words.find((candidate) => candidate.id === opened.id) ?? opened) : null;
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [refetching, setRefetching] = useState(false);
+  const [refetchMessage, setRefetchMessage] = useState<RefetchMessage | null>(null);
+
+  /**
+   * The record keeps only the sense you chose, so the full list and the synonyms come
+   * from the local cache. Keyed on `updatedAt` so a refetch is picked up. A word pulled
+   * from another device has no cache entry here — hence the pointer to refetch.
+   */
+  const cached = useCachedLookup(word?.term, word?.updatedAt);
+  const candidates = cached?.senses ?? [];
+
+  // Never carry an armed delete, or a stale result, over to a different word.
   useEffect(() => {
     setConfirmingDelete(false);
-  }, [word?.id]);
+    setRefetchMessage(null);
+  }, [opened?.id]);
 
   if (!word) return null;
 
-  const senses = word.senses;
+  // Offer the cached list where we have it, otherwise just the sense on the record.
+  const choices = candidates.length > 0 ? candidates : word.senses;
+  const keptIndex = indexOfKeptSense(word, choices);
+  const synonyms = synonymsForKeptSense(word, candidates);
 
   function playAudio(): void {
     if (!word?.audioUrl) return;
     void new Audio(word.audioUrl).play().catch(() => undefined);
+  }
+
+  async function refetch(): Promise<void> {
+    if (!word || refetching) return;
+
+    setRefetching(true);
+    setRefetchMessage(null);
+    try {
+      const outcome = await refetchDefinition(word.id);
+      // Each outcome says what happened; a silent button is indistinguishable from
+      // a broken one.
+      const messages: Record<typeof outcome, RefetchMessage> = {
+        updated: { tone: 'ok', text: 'Definition refreshed from the dictionary.' },
+        notfound: {
+          tone: 'bad',
+          text: 'The dictionary still has no entry for this word. Anything you had is untouched — the links below may help.',
+        },
+        unavailable: {
+          tone: 'bad',
+          text: "Couldn't reach the dictionary. Your word is safe; try again when the connection is better.",
+        },
+        missing: { tone: 'bad', text: 'This word is no longer in your shelf.' },
+      };
+      setRefetchMessage(messages[outcome]);
+    } finally {
+      setRefetching(false);
+    }
   }
 
   return (
@@ -145,30 +208,53 @@ export function WordDetailSheet({ word, bookTitle, onClose, onEdit }: WordDetail
         )}
 
         {/* --- senses --------------------------------------------------- */}
-        {senses.length > 0 ? (
-          <div>
+        <div>
+          <div className="flex items-start justify-between gap-3">
             <p className="label">
-              {senses.length === 1
-                ? 'Definition'
-                : `${senses.length} senses · tap the one your book meant`}
+              {choices.length > 1
+                ? `${choices.length} senses · tap the one your book meant`
+                : 'Definition'}
             </p>
+
+            {/* A capture made on a slow connection can land without its definition.
+                This asks again, bypassing the cached answer. */}
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              disabled={refetching}
+              aria-label={`Fetch the definition of ${word.term} again`}
+              title="Fetch the definition again"
+              className="-mt-2 -mr-2 flex h-10 w-10 shrink-0 items-center justify-center text-ink-faint transition-colors hover:text-rubric disabled:opacity-40"
+            >
+              <RefreshIcon className={`h-4 w-4 ${refetching ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {choices.length > 0 ? (
             <ol className="mt-2 space-y-1">
-              {senses.map((sense, index) => {
-                const isPrimary = index === word.primarySense;
+              {choices.map((sense, index) => {
+                const isPrimary = index === keptIndex;
                 return (
                   <li key={`${sense.partOfSpeech}-${index}`}>
                     <button
                       type="button"
-                      onClick={() => void updateWord(word.id, { primarySense: index })}
+                      // Writes the sense itself, not an index — the record carries the
+                      // meaning, so it survives the dictionary reordering its list.
+                      onClick={() =>
+                        void updateWord(word.id, {
+                          senses: [senseForRecord(sense)],
+                          primarySense: 0,
+                        })
+                      }
                       aria-pressed={isPrimary}
-                      disabled={senses.length === 1}
+                      disabled={choices.length === 1}
                       className={`flex w-full gap-2.5 border-l-2 py-2 pl-2.5 text-left text-[0.9375rem] leading-snug transition-colors ${
                         isPrimary
                           ? 'border-rubric bg-rubric-tint/60 text-ink'
                           : 'border-transparent text-ink-faint hover:border-rule hover:text-ink-soft'
                       }`}
                     >
-                      {senses.length > 1 && (
+                      {choices.length > 1 && (
                         <span
                           className={`font-mono text-[0.6875rem] leading-5 ${
                             isPrimary ? 'text-rubric' : ''
@@ -193,14 +279,42 @@ export function WordDetailSheet({ word, bookTitle, onClose, onEdit }: WordDetail
                 );
               })}
             </ol>
-          </div>
-        ) : (
-          <p className="text-sm text-ink-soft">
-            {word.lookupState === 'pending'
-              ? "Saved offline — the definition will fill in once you're back online."
-              : 'No dictionary entry was found for this word.'}
-          </p>
-        )}
+          ) : (
+            <p className="mt-1 text-sm text-ink-soft">
+              {word.lookupState === 'pending'
+                ? "Saved without a definition — it fills in once you're back online, or ask again now."
+                : 'No dictionary entry was found for this word.'}
+            </p>
+          )}
+
+          {/* Synonyms are never stored on a record — they come from the local cache,
+              which is why a word pulled from another device has none until refetched. */}
+          {synonyms.length > 0 && (
+            <p className="mt-3 flex flex-wrap items-baseline gap-x-2">
+              <span className="label">Similar</span>
+              <span className="text-[0.9375rem] text-ink-soft">{synonyms.join(' · ')}</span>
+            </p>
+          )}
+
+          {candidates.length === 0 && word.senses.length > 0 && (
+            <p className="label mt-3 !normal-case !tracking-normal">
+              Other senses and similar words aren't stored with the entry — refresh above to
+              fetch them onto this device.
+            </p>
+          )}
+
+          {refetchMessage && (
+            <p
+              className={`animate-bleed mt-2.5 border-l-2 pl-3 text-sm ${
+                refetchMessage.tone === 'bad'
+                  ? 'border-rubric text-ink-soft'
+                  : 'border-rule text-ink-soft'
+              }`}
+            >
+              {refetchMessage.text}
+            </p>
+          )}
+        </div>
 
         <hr className="rule-line" />
 
