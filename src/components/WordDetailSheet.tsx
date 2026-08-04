@@ -326,9 +326,13 @@ export function WordDetailSheet({
 
         <hr className="rule-line" />
 
+        {/* The page lives here as well as in the citation, because the citation only
+            exists when there is a sentence to attribute — so a page recorded on its own
+            was saved and then never shown anywhere. This line always renders. */}
         <p className="label !normal-case !tracking-normal">
           Added {formatEntryDate(word.addedAt)}
           {bookTitle ? ` · ${bookTitle}` : ''}
+          {word.page ? ` · p. ${word.page}` : ''}
         </p>
       </div>
     </Sheet>

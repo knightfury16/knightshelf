@@ -198,6 +198,14 @@ export function WordEntry({ word, bookTitle, onEdit, onOpen, index = 0 }: WordEn
       <div className="mt-3 flex items-center gap-3">
         <span className="label">{formatEntryDate(word.addedAt)}</span>
 
+        {/* Only when the citation above isn't already carrying it. A page recorded
+            without a sentence has no citation to appear in, so it was saved and then
+            shown nowhere; repeating it two lines under "— Moby Dick, p. 114" would just
+            be noise. */}
+        {!word.contextSentence && word.page && (
+          <span className="label">p. {word.page}</span>
+        )}
+
         {extraSenses > 0 && (
           <button
             type="button"
