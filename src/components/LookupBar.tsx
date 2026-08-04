@@ -5,6 +5,7 @@ import { useLibrary } from '../state/LibraryContext';
 import { abbreviatePartOfSpeech } from '../lib/lexicon';
 import type { LookupState, Sense } from '../types';
 import { WordFormSheet, type WordDraft } from './WordFormSheet';
+import { commit } from '../lib/haptics';
 import { SpeakerIcon } from './Icons';
 import { ReferenceLinks } from './ReferenceLinks';
 
@@ -143,6 +144,8 @@ export function LookupBar({
         phonetic: draft.phonetic,
         audioUrl: draft.audioUrl,
       });
+      // The field clears itself, which looks the same as a press that missed.
+      commit();
       setFlash(draft.term);
       setTerm('');
       setPreview({ state: 'idle' });

@@ -13,11 +13,18 @@ import '@fontsource/ibm-plex-mono/500.css';
 
 import './index.css';
 import { App } from './App';
+import { installTapHaptics } from './lib/haptics';
 import { LibraryProvider } from './state/LibraryProvider';
 import { SyncProvider } from './state/SyncProvider';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element #root is missing from index.html.');
+
+/**
+ * Outside React on purpose: it belongs to the document for the app's whole lifetime, and
+ * an effect would attach it twice under StrictMode.
+ */
+installTapHaptics();
 
 createRoot(container).render(
   <StrictMode>
