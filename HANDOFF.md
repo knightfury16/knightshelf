@@ -114,10 +114,38 @@ Things not to undo:
 - **The token never passes through React context** and is verified before being stored,
   so a typo cannot leave a broken configuration behind.
 
-Known ceiling: the Contents API caps a file near 1 MB, which at ~600 bytes per word
-plus pretty-printing is roughly **1,250 words**. Reported explicitly as `too-large`
-rather than failing obscurely. Passing it needs the Git Data API
-(blob → tree → commit → ref), which is the natural next piece of work here.
+### Sync format versions
+
+- **1** — one file, every book and word, all senses.
+- **2** — records keep only the sense the reader chose, without synonyms. The full list
+  lives in the local lookup cache and is never synced. Roughly 44% smaller per record.
+- **3** — split across files: `manifest.json` (books + a revision per book) plus
+  `books/{bookId}.json` per book. `library.json` is left behind holding only a version
+  marker, so an older app refuses it rather than quietly maintaining a second library.
+
+Older formats are read and migrated. An older *app* refuses a newer file outright.
+
+### Sharding invariants — do not undo these
+
+`src/lib/shards.ts` is pure and tested; `src/lib/shardedSync.ts` holds the flow.
+
+- **Shards are written before the manifest.** The manifest may then lag behind reality,
+  costing a missed fetch that heals on the writer's next sync. Manifest-first would have
+  it advertise revisions that do not exist.
+- **Revisions are hints, never authority.** They narrow which files a sync fetches. A
+  stale one causes a redundant fetch or brief lag, never a lost record, because merging
+  still works from whatever the fetched file actually contains.
+- **A revision is a content hash, not a timestamp.** Two different word sets can share
+  their newest `updatedAt`; a hash tells them apart. There is a test for exactly that.
+- **A partial fetch is safe** because merging is a union — a word absent from the remote
+  side counts as unseen, never as deleted. Which is why only changed books are fetched.
+- **Any conflict abandons the attempt and re-reads everything.** Retrying one file
+  against a manifest read before the conflict would reason from a state that has gone.
+- **Agreed revisions are recorded only after every write succeeded**, so a failure
+  re-plans next time instead of skipping a book it never pushed.
+
+The 1 MB per-file cap still exists but no longer binds: it now applies per book, and no
+book yields enough lookups to approach it. `too-large` remains as a clear failure.
 
 Original plan retained below for context.
 

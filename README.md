@@ -104,8 +104,10 @@ record of your reading. Browsing it shows what you learned, and when.
 - Because it is scoped to one repository with contents-only access, a leaked token
   exposes your word list and nothing else. Revoking it on GitHub kills it everywhere.
 - **Keep the repository private.** The app warns you in Settings if it isn't.
-- Sync currently handles libraries up to roughly 1,250 words. Past that it says so
-  plainly rather than failing quietly.
+- Your words are stored one file per book, alongside a small manifest listing them. So a
+  sync rewrites only the book you were reading rather than your whole archive — which
+  keeps mobile data down, keeps the library from outgrowing any single file, and makes
+  each commit read as *"added 3 words to Moby Dick"*.
 
 ## Your data
 
@@ -125,9 +127,8 @@ Usable daily. It's a personal project, built around one reader's habits.
 
 - [x] Books, word capture, dictionary lookup, both reading views, search, offline, PWA
 - [x] Excel export — one sheet per book
-- [x] Sync through a private GitHub repository
+- [x] Sync through a private GitHub repository, one file per book
 - [ ] **Excel import**, so an export can be restored rather than only kept
-- [ ] Larger libraries — sync needs the Git Data API to pass the ~1,250 word ceiling
 - [ ] ISBN capture, richer statistics
 
 ## Run it locally
