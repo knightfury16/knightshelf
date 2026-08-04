@@ -6,6 +6,7 @@ import { abbreviatePartOfSpeech, formatEntryDate } from '../lib/lexicon';
 import { indexOfKeptSense, senseForRecord, synonymsForKeptSense } from '../lib/senses';
 import { useCachedLookup } from '../lib/hooks';
 import { commit, warn } from '../lib/haptics';
+import { refetchMessageFor, type RefetchMessage } from '../lib/refetch';
 import { PencilIcon, RefreshIcon, SpeakerIcon, StarIcon, TrashIcon } from './Icons';
 import { ReferenceLinks } from './ReferenceLinks';
 
@@ -22,11 +23,6 @@ interface WordDetailSheetProps {
   bookTitle?: string;
   onClose: () => void;
   onEdit: (word: Word) => void;
-}
-
-interface RefetchMessage {
-  tone: 'ok' | 'bad';
-  text: string;
 }
 
 export function WordDetailSheet({
@@ -83,24 +79,12 @@ export function WordDetailSheet({
     setRefetchMessage(null);
     try {
       const outcome = await refetchDefinition(word.id);
-      // Each outcome says what happened; a silent button is indistinguishable from
-      // a broken one.
-      const messages: Record<typeof outcome, RefetchMessage> = {
-        updated: { tone: 'ok', text: 'Definition refreshed from the dictionary.' },
-        notfound: {
-          tone: 'bad',
-          text: 'The dictionary still has no entry for this word. Anything you had is untouched — the links below may help.',
-        },
-        unavailable: {
-          tone: 'bad',
-          text: "Couldn't reach the dictionary. Your word is safe; try again when the connection is better.",
-        },
-        missing: { tone: 'bad', text: 'This word is no longer in your shelf.' },
-      };
       // Behind an icon with a small result message, so the outcome is easy to miss.
       if (outcome === 'updated') commit();
       else warn();
-      setRefetchMessage(messages[outcome]);
+      // Shared with the capture form, which offers the same retry before a word is
+      // saved — and needs the wording to stop promising that the word is safe.
+      setRefetchMessage(refetchMessageFor(outcome, { saved: true }));
     } finally {
       setRefetching(false);
     }

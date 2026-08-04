@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { Book, BookStatus, LookupState, Sense, Word } from '../types';
+import type { RefetchOutcome } from '../lib/refetch';
 
 /**
  * Context shape and consumer hook.
@@ -39,8 +40,11 @@ export interface NewWordInput {
 /**
  * Result of asking the dictionary again for a word already in the shelf.
  * `unavailable` means the network failed, so the record was left untouched.
+ *
+ * Defined in `lib/refetch` alongside the wording for each outcome, so the two cannot
+ * drift — and so the unsaved capture form can reuse both.
  */
-export type RefetchOutcome = 'updated' | 'notfound' | 'unavailable' | 'missing';
+export type { RefetchOutcome };
 
 export interface LibraryValue extends LibrarySnapshot {
   createBook: (input: NewBookInput) => Promise<Book>;
