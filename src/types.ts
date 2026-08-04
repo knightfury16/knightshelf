@@ -9,7 +9,12 @@
  *    resurrected by the next merge from your laptop, which still has the row.
  */
 
-export const SCHEMA_VERSION = 1;
+/**
+ * 2 — records hold only the sense the reader kept, without synonyms. The full sense
+ * list lives in the local lookup cache, which is never synced. Version 1 files are
+ * still readable; a version 1 app refuses a version 2 file rather than drifting.
+ */
+export const SCHEMA_VERSION = 2;
 
 /** One dictionary sense. A word like "sheet" has several wildly different ones. */
 export type Sense = {
@@ -47,11 +52,13 @@ export type Word = {
   bookId: string;
   /** As looked up, lowercased for matching; display uses this verbatim. */
   term: string;
-  senses: Sense[];
   /**
-   * Which sense your book actually meant. Reading a nautical novel, "sheet" is
-   * a rope, not paper — and the dictionary returns paper first. Defaults to 0.
+   * Only the sense you kept — at most one entry, and never with synonyms. Everything
+   * else the dictionary returned lives in the local lookup cache, which is not synced.
+   * `lib/senses.ts` explains why the shape has to be identical on every device.
    */
+  senses: Sense[];
+  /** Always 0 from version 2 onwards. Retained so version 1 files stay readable. */
   primarySense: number;
   phonetic?: string;
   audioUrl?: string;

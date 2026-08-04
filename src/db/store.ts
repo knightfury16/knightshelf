@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Book, LibraryData, Sense, Word } from '../types';
 import { SCHEMA_VERSION } from '../types';
 import { nowIso } from '../lib/id';
+import { isTrimmed, trimWord } from '../lib/senses';
 
 /**
  * IndexedDB is the working copy and the source of truth for the running app.
@@ -154,6 +155,53 @@ export async function readMeta(key: string): Promise<string | undefined> {
 export async function writeMeta(key: string, value: string): Promise<void> {
   const db = await getDb();
   await db.put('meta', value, key);
+}
+
+/* --------------------------------------------------------- migrations */
+
+/**
+ * Moves full sense lists out of records and into the local cache.
+ *
+ * Runs on every start and is a no-op once done. Two ordering rules matter:
+ *
+ * 1. The full list is cached **before** the record is trimmed, so this device keeps its
+ *    sense picker and synonyms rather than losing them to the migration.
+ * 2. `updatedAt` is deliberately not bumped. Trimming is a change of shape, not an
+ *    edit — bumping it would push a spurious update that could win over a genuinely
+ *    newer edit made on another device.
+ *
+ * Must complete before the first sync, or the merge could trim a record on this device
+ * before its senses were preserved.
+ */
+export async function trimStoredSenses(): Promise<number> {
+  const db = await getDb();
+  const all = await db.getAll('words');
+  const pending = all.filter((word) => !isTrimmed(word));
+  if (pending.length === 0) return 0;
+
+  for (const word of pending) {
+    if (word.senses.length === 0) continue;
+    const term = word.term.toLowerCase();
+
+    // Never overwrite a real cached lookup — it is fresher than a stored record.
+    const existing = await db.get('lookups', term);
+    if (existing) continue;
+
+    await db.put('lookups', {
+      term,
+      found: true,
+      senses: word.senses,
+      phonetic: word.phonetic,
+      audioUrl: word.audioUrl,
+      fetchedAt: nowIso(),
+    });
+  }
+
+  const tx = db.transaction('words', 'readwrite');
+  await Promise.all(pending.map((word) => tx.store.put(trimWord(word))));
+  await tx.done;
+
+  return pending.length;
 }
 
 /* -------------------------------------------------- whole-library access */
