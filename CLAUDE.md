@@ -57,6 +57,14 @@ runtime-cached so `unicode-range` fetches only what the text uses.
 the next sync from a device that still holds the row. `exportLibrary()` deliberately
 includes tombstones; `listBooks`/`listWords` filter them.
 
+**Everything entering a commit message goes through `sanitizeForCommit`.** Book titles
+reach it from Open Library or from a free-text field, so a title holding a newline would
+end the subject line and append a body of its own. `src/lib/commitMessages.ts` owns every
+message the sync writes; build new ones there rather than interpolating at the call site.
+That module tests control characters by code point on purpose — a character class would put
+literal control bytes in the source, which makes the file read as binary to `grep` and
+invisible to whoever edits it next.
+
 **All external API responses are narrowed from `unknown`** before touching storage,
 and definitions render as text. Never use `dangerouslySetInnerHTML` — third-party
 content is the only injection vector in an app shaped like this.

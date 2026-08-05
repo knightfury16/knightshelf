@@ -95,7 +95,13 @@ were both edited offline merge automatically — words are combined, and the mos
 edit wins on anything touched in both places.
 
 A quiet bonus: every sync is a git commit, so the repository's history becomes a dated
-record of your reading. Browsing it shows what you learned, and when.
+record of your reading — which book, how many words, and from which device:
+
+```
+Brave Otter — 3 words added to Moby Dick
+Quiet Heron — 1 word added, 2 updated in Blood Meridian
+Brave Otter — Dune added to the shelf
+```
 
 **Worth knowing**
 
@@ -106,8 +112,14 @@ record of your reading. Browsing it shows what you learned, and when.
 - **Keep the repository private.** The app warns you in Settings if it isn't.
 - Your words are stored one file per book, alongside a small manifest listing them. So a
   sync rewrites only the book you were reading rather than your whole archive — which
-  keeps mobile data down, keeps the library from outgrowing any single file, and makes
-  each commit read as *"added 3 words to Moby Dick"*.
+  keeps mobile data down and keeps the library from outgrowing any single file.
+- **Each device names itself**, and every commit says which one pushed it:
+  `Brave Otter — 3 words added to Moby Dick`. The name is generated on first sync so there
+  is nothing to set up, and you can rename it to something you recognise under
+  **Settings → Sync**. Because every device authenticates with the same token, GitHub
+  attributes all these commits to you — the name in the message is the only thing that
+  tells them apart. Note that a different browser, or a different profile in the same
+  browser, counts as a different device.
 
 ## Your data
 

@@ -32,6 +32,8 @@ These came out of a design conversation. Treat them as settled.
 | Primary device | **Pixel 8** (Chrome/Android, 412×915 CSS viewport) — phone-first |
 | Tab bar inside a book | Stays hidden; the lookup bar owns the bottom edge |
 | Launch behaviour | Open straight into the current book with the field focused |
+| Device identity | Auto-generated adjective + animal, renameable in Settings → Sync |
+| Where identity appears | **Commit messages only** — never `committer`/`author`, never in the synced files |
 
 On launch target: every book starts as `reading`, so "current book" is resolved as
 **most recently active**, where activity counts word captures rather than only edits
@@ -146,6 +148,30 @@ Older formats are read and migrated. An older *app* refuses a newer file outrigh
 
 The 1 MB per-file cap still exists but no longer binds: it now applies per book, and no
 book yields enough lookups to approach it. `too-large` remains as a clear failure.
+
+### Device identity — why it lives only in commit messages
+
+Sync authenticates with one token, so GitHub attributes every commit in the data repo to
+the same account regardless of which machine pushed. The device name closes that gap.
+`src/lib/deviceName.ts` generates one on first use and persists it under
+`knightshelf.device` — deliberately **not** under the `knightshelf.sync.*` prefix, because
+it belongs to the browser rather than the remote and must survive Disconnect.
+
+Identity is confined to commit messages. Three placements were considered and rejected:
+
+- **`committer`/`author` on the API body.** GitHub would show the device as the author, but
+  a synthetic email detaches the commit from the account and it stops counting as a
+  contribution; a real email means GitHub displays the account and hides the device name.
+- **A field on `manifest.json`.** This push-loops forever. `parseManifest` rebuilds its
+  result and silently drops unknown keys, while `manifestChanged` compares serialised
+  output — so each device would strip the other's field, see a difference, and rewrite.
+  Fixing it needs *two* separate changes together, which is a trap not worth setting.
+- **A field on records.** It survives the merge, but grows every row right after sense
+  trimming shrank them, and shifts how `pickWinner` breaks `updatedAt` ties.
+
+Per-book counts come from diffing the shard about to be written against the shard just
+fetched — both already in hand, so `mergeLibraries` and `MergeStats` needed no changes.
+`commitMessage` in `syncEngine.ts` is now used only by the legacy single-file `runSync`.
 
 Original plan retained below for context.
 
