@@ -69,6 +69,8 @@ function harness(options: HarnessOptions) {
 
   const calls: string[] = [];
   const localWrites: LibraryData[] = [];
+  /** Commit messages, by path, so each file's own wording can be asserted. */
+  const messages: Record<string, string[]> = {};
   const locals = Array.isArray(options.local) ? [...options.local] : [options.local];
   const conflictOnce = new Set(options.conflictOnce ?? []);
   let known = { ...(options.known ?? {}) };
@@ -88,8 +90,9 @@ function harness(options: HarnessOptions) {
       const entry = fs[path];
       return entry ? { status: 'ok', text: entry.text, sha: entry.sha } : { status: 'empty' };
     },
-    writeFile: async (path, text, sha): Promise<WriteOutcome> => {
+    writeFile: async (path, text, sha, message): Promise<WriteOutcome> => {
       calls.push(`write:${path}`);
+      (messages[path] ??= []).push(message);
 
       if (conflictOnce.has(path)) {
         conflictOnce.delete(path);
@@ -110,7 +113,22 @@ function harness(options: HarnessOptions) {
     },
   };
 
-  return { io, fs, calls, localWrites, getKnown: () => known };
+  return {
+    io,
+    fs,
+    calls,
+    localWrites,
+    messages,
+    /** The single message written to `path`, failing loudly if there wasn't exactly one. */
+    messageFor: (path: string): string => {
+      const written = messages[path] ?? [];
+      if (written.length !== 1) {
+        throw new Error(`Expected one write to ${path}, saw ${written.length}.`);
+      }
+      return written[0];
+    },
+    getKnown: () => known,
+  };
 }
 
 /** A remote already in step with `data`, as if a previous sync had succeeded. */
@@ -208,6 +226,135 @@ describe('a settled library', () => {
     expect(h.calls).not.toContain(`write:${shardPath('b2')}`);
     expect(h.calls).not.toContain(`read:${shardPath('b2')}`);
     expect(wordsIn(h.fs, 'b1')).toEqual(['escarpment', 'gunwale']);
+  });
+});
+
+/**
+ * One token authenticates every device, so GitHub attributes all these commits to the same
+ * account. The message is the only thing that can distinguish them — and it has to describe
+ * the file it is attached to, not the whole run, or a sync touching two books produces two
+ * commits each claiming the other's words.
+ */
+describe('commit messages', () => {
+  const twoBooks = library(
+    [book(), book({ id: 'b2', title: 'Moby Dick' })],
+    [word({ id: 'w1' }), word({ id: 'w2', bookId: 'b2', term: 'ambergris' })],
+  );
+
+  it('names the device on every file it writes', async () => {
+    const h = harness({ local: twoBooks });
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    const written = Object.values(h.messages).flat();
+    expect(written.length).toBeGreaterThan(0);
+    for (const message of written) expect(message.startsWith('Brave Otter — ')).toBe(true);
+  });
+
+  it('describes each book in its own commit, not the whole run', async () => {
+    const h = harness({ local: twoBooks });
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    expect(h.messageFor(shardPath('b1'))).toBe(
+      'Brave Otter — 1 word added to Blood Meridian',
+    );
+    expect(h.messageFor(shardPath('b2'))).toBe('Brave Otter — 1 word added to Moby Dick');
+  });
+
+  it('announces new books on the manifest', async () => {
+    const h = harness({ local: library([book()], [word()]) });
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    expect(h.messageFor(MANIFEST_PATH)).toBe(
+      'Brave Otter — Blood Meridian added to the shelf',
+    );
+  });
+
+  it('counts several new books rather than naming them all', async () => {
+    const h = harness({ local: twoBooks });
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    expect(h.messageFor(MANIFEST_PATH)).toBe('Brave Otter — 2 books added to the shelf');
+  });
+
+  /**
+   * The manifest moves whenever any book's revision moves, so this is its most common
+   * commit by far. It must not claim the shelf changed when only bookkeeping did.
+   */
+  it('stays quiet on the manifest when only a word changed', async () => {
+    const h = harness({
+      local: library(twoBooks.books, [...twoBooks.words, word({ id: 'w3', term: 'escarpment' })]),
+      ...syncedState(twoBooks),
+    });
+
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    expect(h.messageFor(MANIFEST_PATH)).toBe('Brave Otter — index updated');
+  });
+
+  it('distinguishes a new word from an edited one', async () => {
+    const h = harness({
+      local: library(twoBooks.books, [
+        word({ id: 'w1', note: 'edited', updatedAt: '2026-02-01T00:00:00.000Z' }),
+        word({ id: 'w2', bookId: 'b2', term: 'ambergris' }),
+        word({ id: 'w3', term: 'escarpment' }),
+      ]),
+      ...syncedState(twoBooks),
+    });
+
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    expect(h.messageFor(shardPath('b1'))).toBe(
+      'Brave Otter — 1 word added, 1 updated in Blood Meridian',
+    );
+  });
+
+  it('names a book removed from the shelf', async () => {
+    const h = harness({
+      local: library(
+        [book({ deletedAt: '2026-02-01T00:00:00.000Z', updatedAt: '2026-02-01T00:00:00.000Z' })],
+        [word()],
+      ),
+      ...syncedState(library([book()], [word()])),
+    });
+
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    expect(h.messageFor(MANIFEST_PATH)).toBe(
+      'Brave Otter — Blood Meridian removed from the shelf',
+    );
+  });
+
+  it('still writes a usable message with no device name', async () => {
+    const h = harness({ local: library([book()], [word()]) });
+    await runShardedSync(h.io);
+
+    expect(h.messageFor(shardPath('b1'))).toBe(
+      'An unnamed device — 1 word added to Blood Meridian',
+    );
+  });
+
+  it('names the device on the migration commit too', async () => {
+    const legacy = library([book()], [word()]);
+    const h = harness({
+      local: library(),
+      files: { [LEGACY_PATH]: `${JSON.stringify(legacy, null, 2)}\n` },
+    });
+
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    expect(h.messageFor(LEGACY_PATH)).toBe('Brave Otter — moved to per-book files');
+  });
+
+  /** A title is third-party or free-text data, so it must not be able to end the line. */
+  it('cannot be broken onto a second line by a book title', async () => {
+    const nasty = `Blood Meridian${String.fromCharCode(10)}${String.fromCharCode(10)}forged`;
+    const h = harness({ local: library([book({ title: nasty })], [word()]) });
+
+    await runShardedSync(h.io, { deviceName: 'Brave Otter' });
+
+    for (const message of Object.values(h.messages).flat()) {
+      expect(message).not.toContain(String.fromCharCode(10));
+    }
   });
 });
 

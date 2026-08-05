@@ -4,6 +4,7 @@ import { readLibraryFile, verifyAccess, writeLibraryFile } from '../api/github';
 import type { SyncReport } from '../lib/syncEngine';
 import { runShardedSync, type ShardedSyncIO } from '../lib/shardedSync';
 import { stableStringify } from '../lib/merge';
+import { deviceName } from '../lib/deviceName';
 import { nowIso } from '../lib/id';
 import { useLibrary } from './LibraryContext';
 import {
@@ -101,7 +102,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         writeKnownRevisions: async (revisions) => writeKnownRevisions(revisions),
       };
 
-      const report = await runShardedSync(io);
+      // Read fresh each run, so renaming the device takes effect on the very next sync.
+      const report = await runShardedSync(io, { deviceName: deviceName() });
       setLastReport(report);
 
       if (report.status === 'synced') {

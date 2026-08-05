@@ -2,7 +2,14 @@ import type { LibraryData } from '../types';
 import { SCHEMA_VERSION, emptyLibrary } from '../types';
 import type { ReadOutcome, WriteOutcome } from '../api/github';
 import { isRemoteVersionSupported, mergeLibraries, type MergeStats } from './merge';
-import { commitMessage, parseRemoteLibrary, type SyncReport } from './syncEngine';
+import { parseRemoteLibrary, type SyncReport } from './syncEngine';
+import {
+  countBookChanges,
+  countWordChanges,
+  legacyRetiredMessage,
+  manifestCommitMessage,
+  shardCommitMessage,
+} from './commitMessages';
 import {
   LEGACY_PATH,
   MANIFEST_PATH,
@@ -34,6 +41,11 @@ import {
  * A conflict on any file abandons the attempt and starts over, re-reading everything.
  * Retrying a single file against a manifest read before the conflict would be reasoning
  * from a state that no longer exists.
+ *
+ * Each write gets its own commit message describing only that file, built from the shard
+ * about to be written and the one just read — both already in hand, so per-book counts
+ * need nothing from the merge. `deviceName` names the machine, since one token means
+ * GitHub attributes every commit here identically.
  */
 
 export interface ShardedSyncIO {
@@ -94,9 +106,15 @@ const DEFAULT_MAX_ATTEMPTS = 3;
 
 export async function runShardedSync(
   io: ShardedSyncIO,
-  options: { maxAttempts?: number } = {},
+  /**
+   * `deviceName` sits here rather than on `ShardedSyncIO` because it is a label, not a
+   * capability — and because making it optional keeps every existing caller and test
+   * harness valid. A sync without one still writes well-formed messages.
+   */
+  options: { maxAttempts?: number; deviceName?: string } = {},
 ): Promise<SyncReport> {
   const maxAttempts = Math.max(1, options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
+  const deviceName = options.deviceName;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     // Re-read local each attempt: a word may have been captured while we retried.
@@ -191,6 +209,9 @@ export async function runShardedSync(
     let conflicted = false;
     let pushed = false;
 
+    /** Titles for commit messages. A shard of orphaned words has no entry here. */
+    const titleById = new Map(split.manifest.books.map((entry) => [entry.id, entry.title]));
+
     for (const shard of split.shards) {
       const revision = split.manifest.shards[shard.bookId];
       const seen = fetched.get(shard.bookId);
@@ -213,7 +234,14 @@ export async function runShardedSync(
         shardPath(shard.bookId),
         serialize(shard),
         seen?.sha,
-        commitMessage(outcome.stats),
+        shardCommitMessage({
+          deviceName,
+          bookTitle: titleById.get(shard.bookId),
+          // Against the shard we actually read. `seen.shard.words` is an empty list for a
+          // file the manifest advertised but that turned out to be absent; passing
+          // undefined instead would be a first-write claim we cannot make here.
+          ...countWordChanges(shard.words, seen ? seen.shard.words : undefined),
+        }),
       );
 
       if (write.status === 'conflict') {
@@ -247,7 +275,10 @@ export async function runShardedSync(
         MANIFEST_PATH,
         serialize(nextManifest),
         manifestSha,
-        commitMessage(outcome.stats),
+        manifestCommitMessage({
+          deviceName,
+          ...countBookChanges(nextManifest.books, manifest.books),
+        }),
       );
 
       if (write.status === 'conflict') continue;
@@ -268,7 +299,7 @@ export async function runShardedSync(
           LEGACY_PATH,
           serialize({ version: SCHEMA_VERSION, books: [], words: [] }),
           tripwire.sha,
-          'Moved to per-book files',
+          legacyRetiredMessage(deviceName),
         );
         if (write.status === 'conflict') continue;
         const failure = reportForWrite(write);
