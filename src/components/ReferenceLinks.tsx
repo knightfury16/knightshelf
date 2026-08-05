@@ -1,5 +1,6 @@
 import { useState, type MouseEvent } from 'react';
 import { referenceLinks } from '../lib/references';
+import { browserReferenceIO, followReference } from '../lib/openReference';
 
 /**
  * A reference footnote, not a toolbar.
@@ -38,8 +39,8 @@ export function ReferenceLinks({
   const links = referenceLinks(term);
 
   async function handleClick(event: MouseEvent<HTMLAnchorElement>, href: string): Promise<void> {
-    // With nothing to save, the plain link is the better behaviour: a new tab keeps
-    // the app alive underneath.
+    // With nothing to save, the plain link is the better behaviour: the browser's own
+    // target="_blank" keeps the app alive underneath and needs no help from us.
     if (!beforeNavigate) return;
 
     event.preventDefault();
@@ -47,16 +48,10 @@ export function ReferenceLinks({
     setBusy(true);
 
     try {
-      await beforeNavigate();
+      // Ordering and fallbacks live in followReference, where they are testable.
+      await followReference(href, beforeNavigate, browserReferenceIO());
     } finally {
       setBusy(false);
-      /**
-       * A popup opened after an await may fall outside the user-gesture window and be
-       * blocked, so fall back to navigating this tab. Either route is safe now — the
-       * word is already committed.
-       */
-      const opened = window.open(href, '_blank', 'noopener,noreferrer');
-      if (!opened) window.location.href = href;
     }
   }
 
