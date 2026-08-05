@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { useSync } from '../state/SyncContext';
 import { DEFAULT_PATH } from '../state/syncConfig';
+import {
+  MAX_DEVICE_NAME_LENGTH,
+  deviceName,
+  setDeviceName,
+  validateDeviceName,
+} from '../lib/deviceName';
 import type { SyncReport } from '../lib/syncEngine';
 
 /**
@@ -152,6 +158,21 @@ export function SyncPanel() {
   const [formError, setFormError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
+
+  // Read once on mount: the name only changes through the control below.
+  const [name, setName] = useState<string>(() => deviceName());
+  const [renaming, setRenaming] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+
+  const nameCheck = validateDeviceName(nameInput);
+
+  function commitRename(): void {
+    if (!nameCheck.ok) return;
+    const trimmed = nameInput.trim();
+    setDeviceName(trimmed);
+    setName(trimmed);
+    setRenaming(false);
+  }
 
   const configured = activity !== 'unconfigured';
   const message = lastReport ? describeReport(lastReport) : null;
@@ -327,6 +348,75 @@ export function SyncPanel() {
             {repo.owner}/{repo.repo}
             {repo.path !== DEFAULT_PATH ? ` · ${repo.path}` : ''}
           </p>
+
+          {/* Every device pushes with the same token, so GitHub attributes every commit
+              identically. This name is the only thing in the history that distinguishes
+              them. Shown here rather than in the connect form so it stays changeable. */}
+          <div>
+            <p className="label">This device</p>
+
+            {renaming ? (
+              <div className="mt-1.5">
+                <input
+                  value={nameInput}
+                  onChange={(event) => setNameInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && nameCheck.ok) commitRename();
+                    if (event.key === 'Escape') setRenaming(false);
+                  }}
+                  aria-label="Name for this device"
+                  aria-invalid={!nameCheck.ok}
+                  autoComplete="off"
+                  autoCapitalize="words"
+                  spellCheck={false}
+                  maxLength={MAX_DEVICE_NAME_LENGTH * 2}
+                  // Mounted by an explicit Rename press, so focusing is what was asked
+                  // for — and the press keeps it inside a gesture, which is what raises
+                  // the keyboard on Android.
+                  autoFocus
+                  className="min-h-11 w-full border-b border-rule bg-transparent pb-1.5 font-mono text-sm outline-none focus:border-rubric"
+                />
+
+                {!nameCheck.ok && (
+                  <p className="mt-1.5 border-l-2 border-rubric pl-3 text-sm text-ink-soft">
+                    {nameCheck.message}
+                  </p>
+                )}
+
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRenaming(false)}
+                    className="min-h-11 flex-1 border border-rule px-4 text-sm transition-colors hover:bg-paper-sunk"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={commitRename}
+                    disabled={!nameCheck.ok}
+                    className="min-h-11 flex-1 bg-rubric px-4 text-sm text-paper-raised transition-opacity disabled:opacity-40"
+                  >
+                    Save name
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-1.5 flex items-center justify-between gap-3">
+                <p className="font-mono text-sm text-ink-soft">{name}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNameInput(name);
+                    setRenaming(true);
+                  }}
+                  className="min-h-11 shrink-0 border border-rule px-3 transition-colors hover:border-rubric hover:text-rubric"
+                >
+                  <span className="label text-current">Rename</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           {repoIsPublic && (
             <p className="border-l-2 border-rubric bg-rubric-tint px-3.5 py-2.5 text-sm">
